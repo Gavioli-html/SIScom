@@ -1,0 +1,70 @@
+:root {
+  /* Paleta principal */
+  --ink:        #0d1433;
+  --ink-mid:    #2b3278;
+  --ink-soft:   #5262c4;
+  --paper:      #f7f6f2;
+  --paper-dark: #eeecea;
+  --line:       #d4d2cc;
+  --accent:     #0066cc;
+
+  /* Tipografia */
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Inter', 'Nunito Sans', 'Helvetica Neue', Arial, sans-serif;
+
+  /* Semânticas */
+  --sem-success:    #4a6741;
+  --sem-success-bg: #eef2ec;
+  --sem-success-bd: #b5c9b1;
+
+  --sem-warning:    #7a5c1e;
+  --sem-warning-bg: #f5eddb;
+  --sem-warning-bd: #d4b87a;
+
+  --sem-danger:     #6b2233;
+  --sem-danger-bg:  #f2e8eb;
+  --sem-danger-bd:  #c49aaa;
+
+  --sem-info:       #1e3f6b;
+  --sem-info-bg:    #e8eef5;
+  --sem-info-bd:    #9ab3d0;
+
+  --color-error:    #6b2233;
+  --color-error-bg: #f2e8eb;
+  --color-error-bd: #c49aaa;
+
+  /* Espaçamento — grid 4px */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Border radius */
+  --radius-sm:   4px;
+  --radius-md:   6px;
+  --radius-lg:   8px;
+  --radius-xl:   12px;
+  --radius-2xl:  16px;
+  --radius-full: 9999px;
+
+  /* Tipografia — escala */
+  --text-xs:   0.75rem;
+  --text-sm:   0.875rem;
+  --text-base: 1rem;
+  --text-lg:   1.25rem;
+  --text-xl:   1.5rem;
+  --text-2xl:  1.875rem;
+  --text-3xl:  2.25rem;
+  --text-4xl:  3rem;
+
+  /* Layout */
+  --sidebar-w:      220px;
+  --sidebar-w-sm:   64px;
+  --topbar-h:       56px;
+}

@@ -1,0 +1,30 @@
+# Dependências
+node_modules/
+
+# Build
+dist/
+build/
+
+# Env
+.env
+.env.local
+.env.production
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# Prisma
+api/prisma/migrations/*.sql.bak
+
+# pnpm
+.pnpm-store/

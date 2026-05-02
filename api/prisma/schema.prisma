@@ -1,0 +1,196 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum TipoArea {
+  secretaria
+  departamento
+}
+
+enum Role {
+  solicitante
+  tecnico
+  gestor
+  admin
+}
+
+enum StatusChamado {
+  ABERTO
+  EM_ANALISE
+  ATRIBUIDO
+  EM_ANDAMENTO
+  RESOLVIDO
+  ENCERRADO
+  CANCELADO
+}
+
+enum Prioridade {
+  critica
+  alta
+  media
+  baixa
+  normal
+}
+
+model Area {
+  id          Int      @id @default(autoincrement())
+  nome        String   @db.VarChar(100)
+  slug        String   @unique @db.VarChar(50)
+  tipo        TipoArea
+  config_json Json?
+  criado_em   DateTime @default(now())
+
+  usuarios  Usuario[]
+  templates TemplateChamado[]
+  chamados  Chamado[]
+  ativos    Ativo[]
+
+  @@map("area")
+}
+
+model Usuario {
+  id        Int      @id @default(autoincrement())
+  nome      String   @db.VarChar(150)
+  email     String   @unique @db.VarChar(200)
+  senha     String   @db.VarChar(255)
+  role      Role     @default(solicitante)
+  ativo     Boolean  @default(true)
+  area_id   Int
+  criado_em DateTime @default(now())
+
+  area               Area      @relation(fields: [area_id], references: [id])
+  chamados_abertos   Chamado[] @relation("Solicitante")
+  chamados_atribuidos Chamado[] @relation("Tecnico")
+  mensagens          Mensagem[]
+
+  @@map("usuario")
+}
+
+model TemplateChamado {
+  id              Int      @id @default(autoincrement())
+  area_id         Int
+  nome            String   @db.VarChar(100)
+  campos_json     Json
+  sla_config_json Json
+  criado_em       DateTime @default(now())
+
+  area     Area      @relation(fields: [area_id], references: [id])
+  chamados Chamado[]
+
+  @@map("template_chamado")
+}
+
+model Chamado {
+  id             Int           @id @default(autoincrement())
+  protocolo      String        @unique @db.VarChar(10)
+  titulo         String        @db.VarChar(200)
+  descricao      String        @db.Text
+  template_id    Int
+  area_id        Int
+  solicitante_id Int
+  tecnico_id     Int?
+  status         StatusChamado @default(ABERTO)
+  prioridade     Prioridade    @default(normal)
+  sla_prazo      DateTime?
+  aberto_em      DateTime      @default(now())
+  fechado_em     DateTime?
+  parent_id      Int?
+
+  template    TemplateChamado @relation(fields: [template_id], references: [id])
+  area        Area            @relation(fields: [area_id], references: [id])
+  solicitante Usuario         @relation("Solicitante", fields: [solicitante_id], references: [id])
+  tecnico     Usuario?        @relation("Tecnico", fields: [tecnico_id], references: [id])
+  parent      Chamado?        @relation("Subchamados", fields: [parent_id], references: [id])
+  filhos      Chamado[]       @relation("Subchamados")
+  campos      CampoChamado[]
+  tags        ChamadoTag[]
+  mensagens   Mensagem[]
+  ativos      ChamadoAtivo[]
+
+  @@map("chamado")
+}
+
+model CampoChamado {
+  id         Int    @id @default(autoincrement())
+  chamado_id Int
+  chave      String @db.VarChar(100)
+  valor      String @db.Text
+
+  chamado Chamado @relation(fields: [chamado_id], references: [id], onDelete: Cascade)
+
+  @@map("campo_chamado")
+}
+
+model Tag {
+  id    Int    @id @default(autoincrement())
+  slug  String @unique @db.VarChar(80)
+  label String @db.VarChar(80)
+  cor   String @db.VarChar(7)
+
+  chamados ChamadoTag[]
+
+  @@map("tag")
+}
+
+model ChamadoTag {
+  chamado_id Int
+  tag_id     Int
+
+  chamado Chamado @relation(fields: [chamado_id], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tag_id], references: [id], onDelete: Cascade)
+
+  @@id([chamado_id, tag_id])
+  @@map("chamado_tag")
+}
+
+model Mensagem {
+  id         Int      @id @default(autoincrement())
+  chamado_id Int
+  autor_id   Int
+  conteudo   String   @db.Text
+  criado_em  DateTime @default(now())
+
+  chamado Chamado @relation(fields: [chamado_id], references: [id], onDelete: Cascade)
+  autor   Usuario @relation(fields: [autor_id], references: [id])
+
+  @@map("mensagem")
+}
+
+model Ativo {
+  id         Int    @id @default(autoincrement())
+  patrimonio String @unique @db.VarChar(50)
+  area_id    Int
+  tipo       String @db.VarChar(80)
+  dados_json Json?
+
+  area     Area           @relation(fields: [area_id], references: [id])
+  chamados ChamadoAtivo[]
+
+  @@map("ativo")
+}
+
+model ChamadoAtivo {
+  chamado_id Int
+  ativo_id   Int
+
+  chamado Chamado @relation(fields: [chamado_id], references: [id], onDelete: Cascade)
+  ativo   Ativo   @relation(fields: [ativo_id], references: [id])
+
+  @@id([chamado_id, ativo_id])
+  @@map("chamado_ativo")
+}
+
+model Nps {
+  id         Int      @id @default(autoincrement())
+  chamado_id Int      @unique
+  score      Int
+  comentario String?  @db.Text
+  criado_em  DateTime @default(now())
+
+  @@map("nps")
+}
