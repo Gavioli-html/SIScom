@@ -591,4 +591,280 @@ Inserir como **Fase 7** após o MVP completo:
 
 ---
 
+## 12. CAMPO "SECRETARIA SOLICITANTE" — PRIORIDADE ALTA
+
+> Implementar antes de abrir o sistema para outras secretarias.
+> Campo obrigatório no formulário de abertura de chamado — identifica de qual secretaria vem a demanda, independente do técnico/área que vai atender.
+
+### 12.1 Motivação
+
+Hoje o chamado registra apenas a `area_id` do solicitante (TI ou SECOM).
+Quando o sistema se expandir para atender toda a prefeitura, será necessário saber **qual secretaria originou a demanda** — para relatórios gerenciais, SLA por órgão e analytics por secretaria.
+
+### 12.2 Lista oficial de secretarias
+
+```
+Secretaria Municipal de Governo
+Secretaria Municipal de Negócios Jurídicos
+Secretaria Municipal de Administração e Recursos Humanos
+Secretaria Municipal de Finanças e Planejamento Orçamentário
+Secretaria Municipal de Agropecuária
+Secretaria Municipal de Comunicação
+Secretaria Municipal de Desenvolvimento Social
+Secretaria Municipal de Educação e Cultura
+Secretaria Municipal de Esporte e Lazer
+Secretaria Municipal de Habitação
+Secretaria Municipal de Indústria e Comércio
+Secretaria Municipal de Infraestrutura e Logística
+Secretaria Municipal de Meio Ambiente
+Secretaria Municipal de Saúde
+Secretaria Municipal de Segurança Pública, Trânsito e Defesa Civil
+Secretaria Municipal de Turismo
+```
+
+### 12.3 Implementação sugerida
+
+**Banco de dados:**
+```sql
+-- Nova tabela (ou usar a tabela `area` existente com tipo = secretaria)
+secretaria_solicitante (id, nome, sigla, ativo)
+
+-- Campo adicional em `chamado`
+chamado.secretaria_solicitante_id  INT  NULL → FK para secretaria_solicitante
+```
+
+**Alternativa simples (sem nova tabela):**
+Adicionar campo `secretaria_solicitante` `VARCHAR(120)` na tabela `chamado` com valor validado via enum no backend. Evita migração de FK, adequado para fase inicial.
+
+**Frontend:**
+- Select obrigatório no `NovoChamado.tsx`, logo após o campo Título
+- Pré-selecionar com base no `area.nome` do usuário logado quando houver correspondência
+- Exibir no detalhe do chamado e nos filtros da listagem
+- Incluir no Analytics como dimensão de agrupamento
+
+**Prioridade:** implementar antes de qualquer expansão para novas áreas.
+
+---
+
+## 13. BRAINSTORMING — SECOM SOCIAL MEDIA MOCKUP (v2+)
+
+> Funcionalidade exclusiva da Secretaria de Comunicação.
+> Objetivo: permitir que o solicitante faça upload de arte gráfica e visualize um pré-mockup de como ficará publicada nas redes sociais — tudo dentro do chamado.
+
+### 13.1 Visão geral
+
+Ao abrir um chamado SECOM do tipo **Arte para Redes Sociais**, o sistema exibe um visualizador de mockup com três ambientes:
+
+| Plataforma | Formato | Proporção |
+|---|---|---|
+| Instagram Feed | Post quadrado | 1:1 (1080×1080) |
+| Instagram Stories / WhatsApp Status | Vertical full-screen | 9:16 (1080×1920) |
+| Facebook Feed | Post landscape | 1.91:1 (1200×628) |
+
+### 13.2 Fluxo
+
+```
+1. Solicitante faz upload da arte (PNG/JPG/WebP, max 10MB)
+2. Sistema exibe três abas: Instagram · Facebook · WhatsApp Status
+3. Cada aba mostra um mockup de smartphone/tela com a arte inserida
+4. Solicitante adiciona legenda de exemplo para ver como ficará o post completo
+5. Mockup fica salvo no chamado — técnico da SECOM vê ao abrir o ticket
+6. Botão "Exportar mockup" gera PNG do preview para aprovação
+```
+
+### 13.3 Mockups de interface
+
+**Instagram Feed:**
+```
+┌─────────────────────────────┐
+│ 📱 iPhone frame             │
+│  ┌───────────────────────┐  │
+│  │ [●] usuario · Agora   │  │
+│  │                       │  │
+│  │   [  ARTE 1:1  ]      │  │
+│  │                       │  │
+│  │ ♡ 128   💬 14   ↗ 6   │  │
+│  │ usuario Legenda...    │  │
+│  └───────────────────────┘  │
+└─────────────────────────────┘
+```
+
+**WhatsApp Status / Instagram Stories:**
+```
+┌──────────┐
+│📱 Story  │
+│──────────│
+│          │
+│          │
+│  ARTE    │
+│  9:16    │
+│          │
+│          │
+│──────────│
+│ Legenda  │
+└──────────┘
+```
+
+### 13.4 Implementação técnica
+
+**Frontend:**
+- Upload via `<input type="file">` com preview via `URL.createObjectURL()`
+- Mockup renderizado em CSS puro com frames de dispositivo (sem imagem externa de frame)
+- Três abas com `aspect-ratio` CSS para cada formato:
+  ```css
+  .mockup-insta  { aspect-ratio: 1 / 1; }
+  .mockup-story  { aspect-ratio: 9 / 16; max-height: 480px; }
+  .mockup-face   { aspect-ratio: 1.91 / 1; }
+  ```
+- Export PNG: `html2canvas` ou `dom-to-image` sobre o elemento do mockup
+- Legenda editável com `contenteditable` para simular o texto do post
+
+**Backend:**
+- Upload salvo em `public/uploads/` (ou bucket S3 futuramente)
+- URL do arquivo salva em `campo_chamado` com `chave: "mockup_url"`
+- Endpoint: `POST /chamados/:id/upload` → retorna URL pública
+
+**Segurança:**
+- Validar MIME type no backend (apenas image/*)
+- Limitar tamanho a 10MB
+- Servir uploads via rota separada com header `Content-Disposition: inline`
+
+### 13.5 Dependências sugeridas
+
+| Lib | Uso | Tamanho |
+|---|---|---|
+| `html2canvas` | Export PNG do mockup | ~200KB |
+| Nenhuma para o render | Tudo em CSS + JS nativo | 0 |
+
+### 13.6 Fase sugerida
+
+**Fase 8 — SECOM Studio** (após Analytics completo):
+
+| # | Tarefa |
+|---|--------|
+| 8.1 BE | Endpoint de upload, salvar em disco, retornar URL |
+| 8.2 FE | Componente `MockupViewer` com 3 abas e frame CSS |
+| 8.3 FE | Integrar no formulário `NovoChamado` para área SECOM |
+| 8.4 FE | Exibir mockup salvo no detalhe do chamado (`Chamado.tsx`) |
+| 8.5 FE | Botão "Exportar mockup" via `html2canvas` |
+
+---
+
+## 14. BRAINSTORMING — INVENTÁRIO DE ATIVOS (CMDB LEVE) (v2+ TI)
+
+> Módulo exclusivo da área de TI.
+> Objetivo: ter uma aba dentro do sistema onde qualquer técnico pode cadastrar, consultar e editar equipamentos da prefeitura — vinculando-os a chamados automaticamente pelo número de patrimônio.
+
+### 14.1 Visão geral
+
+Uma aba **Patrimônio** na sidebar (visível apenas para TI) que funciona como um inventário vivo de todos os ativos de TI da prefeitura. Ao abrir um chamado e informar o número de patrimônio, o sistema busca o ativo e pré-preenche as especificações — sem o técnico precisar perguntar.
+
+### 14.2 O que cada ativo registra
+
+```
+Nº Patrimônio   → campo único, obrigatório (ex: 004821)
+Tipo            → Computador / Impressora / Switch / Roteador / Servidor /
+                  Nobreak / Monitor / Projetor / Outro
+Descrição       → nome livre (ex: "Impressora HP LaserJet M404n — Setor Financeiro")
+Localização     → secretaria / setor / sala (ex: "Sec. de Finanças — Sala 12")
+IP              → endereço IPv4 (ex: 192.168.1.45) — opcional
+MAC             → endereço físico de rede — opcional
+Marca / Modelo  → (ex: HP / LaserJet M404n)
+Nº de Série     → (ex: VNB3K18462)
+Data de compra  → para controle de garantia
+Garantia até    → alerta visual quando vencer
+Observações     → campo livre para anotações técnicas
+Status          → Ativo / Em manutenção / Desativado / Descartado
+```
+
+### 14.3 Exemplo prático
+
+```
+Patrimônio: 004821
+Tipo: Impressora
+Descrição: HP LaserJet M404n — Sec. de Finanças
+IP: 192.168.1.45
+MAC: 3C:52:82:1A:4F:BB
+Localização: Secretaria de Finanças · Sala 12
+Garantia até: 2026-08-15  ⚠️ vence em 3 meses
+Status: Ativo
+Observações: Cartucho trocado em 12/03/2026 (CF259A)
+```
+
+### 14.4 Integração com chamados
+
+- No formulário `NovoChamado` (template TI), ao preencher **Nº Patrimônio**:
+  - Sistema faz `GET /ativos?patrimonio=XXXXX`
+  - Se encontrar, exibe card colapsável com as especificações do ativo abaixo do campo
+  - Técnico confirma e o ativo fica vinculado ao chamado (`chamado_ativo`)
+- No detalhe do chamado (`Chamado.tsx`), aba **Ativo** exibe as especificações completas
+- Histórico reverso: na ficha do ativo, listar todos os chamados vinculados
+
+### 14.5 Interface — aba Patrimônio
+
+```
+/ativos
+  ├── Filtros: tipo | status | localização | busca livre
+  ├── Tabela: patrimônio · descrição · IP · localização · status · garantia
+  └── Botão "Novo Ativo"
+
+/ativos/:id
+  ├── Card de especificações completas
+  ├── Botão "Editar"
+  └── Histórico de chamados vinculados (lista com protocolo + data + status)
+```
+
+### 14.6 Alertas automáticos
+
+| Condição | Alerta |
+|---|---|
+| Garantia vence em ≤ 90 dias | badge `tag-warning` na tabela |
+| Garantia já vencida | badge `tag-danger` |
+| Ativo em manutenção com chamado aberto há > 48h | alerta no Analytics |
+
+### 14.7 Modelo de dados (já existe no schema)
+
+A tabela `ativo` já está no `schema.prisma`:
+```
+ativo (id, patrimonio, area_id, tipo, dados_json)
+```
+
+Expandir `dados_json` para conter todas as especificações, ou migrar campos frequentes para colunas próprias:
+```prisma
+model Ativo {
+  id          Int      @id @default(autoincrement())
+  patrimonio  String   @unique
+  area_id     Int
+  tipo        String   // Impressora, Computador, etc.
+  descricao   String?
+  localizacao String?
+  ip          String?
+  mac         String?
+  marca       String?
+  modelo      String?
+  nr_serie    String?
+  comprado_em DateTime?
+  garantia_ate DateTime?
+  status      String   @default("ativo") // ativo | manutencao | desativado | descartado
+  observacoes String?
+  dados_json  Json?    // campos extras sem estrutura fixa
+}
+```
+
+### 14.8 Fase sugerida
+
+**Fase 9 — Inventário TI** (após SECOM Studio):
+
+| # | Tarefa |
+|---|--------|
+| 9.1 BE | `GET /ativos`, `POST /ativos`, `PATCH /ativos/:id` |
+| 9.2 BE | `GET /ativos?patrimonio=` para busca rápida no formulário |
+| 9.3 BE | Migração Prisma — expandir modelo `Ativo` |
+| 9.4 FE | Página `/ativos` com tabela, filtros e alertas de garantia |
+| 9.5 FE | Página `/ativos/:id` com especificações + histórico de chamados |
+| 9.6 FE | Integração no `NovoChamado` — autocomplete por patrimônio |
+| 9.7 FE | Aba "Ativo" no detalhe do chamado (`Chamado.tsx`) |
+
+---
+
 *Jaguariaíva, PR · Abril 2026*

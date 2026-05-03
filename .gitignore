@@ -10,6 +10,9 @@ build/
 .env.local
 .env.production
 
+# Credenciais locais
+CREDENCIAIS.md
+
 # Logs
 *.log
 npm-debug.log*

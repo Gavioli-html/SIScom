@@ -2,11 +2,14 @@
   height: var(--topbar-h);
   background: #fff;
   border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 3px rgba(13, 20, 51, .05);
   display: flex;
   align-items: center;
   padding: 0 var(--space-6);
   gap: var(--space-4);
   flex-shrink: 0;
+  position: relative;
+  z-index: 10;
 }
 
 .topbar-menu-btn {
@@ -20,8 +23,19 @@
   line-height: 1;
 }
 
+.topbar-logo {
+  height: 34px;
+  width: auto;
+  object-fit: contain;
+  display: none;
+  flex-shrink: 0;
+}
+
 .topbar-title {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .topbar-actions {
@@ -34,6 +48,14 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  text-decoration: none;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: background 0.15s;
+}
+
+.topbar-user:hover {
+  background: var(--paper-dark);
 }
 
 .topbar-avatar {
@@ -60,6 +82,11 @@
 @media (max-width: 768px) {
   .topbar-menu-btn {
     display: block;
+  }
+
+  .topbar-logo {
+    display: block;
+    height: 30px;
   }
 
   .topbar-username {

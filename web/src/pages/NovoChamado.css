@@ -1,0 +1,51 @@
+.novo-page {
+  max-width: 800px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.novo-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.novo-disclaimer {
+  line-height: 1.7;
+  font-size: var(--text-sm);
+}
+
+.novo-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.novo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.novo-titulo {
+  grid-column: 1 / -1;
+}
+
+.novo-desc {
+  grid-column: 1 / -1;
+}
+
+.novo-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 600px) {
+  .novo-grid {
+    grid-template-columns: 1fr;
+  }
+}

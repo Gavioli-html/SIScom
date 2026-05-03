@@ -1,0 +1,847 @@
+================================================================================
+  SIScom — Sistema de Gestão de Demandas
+  Prefeitura Municipal de Jaguariaíva · Paraná
+  Versão 1.0.0 (MVP) · Maio 2026
+================================================================================
+
+ÍNDICE
+──────
+  1.  Visão Geral
+  2.  Stack Tecnológica
+  3.  Estrutura de Diretórios
+  4.  Modelo de Dados (Banco de Dados)
+  5.  Autenticação e Segurança
+  6.  API — Endpoints
+  7.  Frontend — Páginas e Rotas
+  8.  Design System
+  9.  SLA — Regras de Negócio
+  10. Usuários de Teste (Seed)
+  11. Variáveis de Ambiente
+  12. Comandos do Projeto
+  13. Roadmap — Fases Concluídas e Futuras
+
+
+================================================================================
+  1. VISÃO GERAL
+================================================================================
+
+SIScom é um sistema web de gestão de chamados internos desenvolvido para a
+Prefeitura Municipal de Jaguariaíva. Não é um site institucional — é uma
+aplicação interna, acessada por servidores públicos.
+
+Escopo inicial (MVP):
+  - TI    — Tecnologia da Informação (departamento interno)
+  - SECOM — Secretaria de Comunicação
+
+A arquitetura usa multitenancy por campo (area_id em todas as tabelas),
+permitindo expansão para outras secretarias sem reescrita.
+
+Funcionalidades do MVP:
+  - Login institucional com JWT (access + refresh token)
+  - Abertura de chamado com formulário dinâmico por área (templates)
+  - Listagem e filtros de chamados
+  - Detalhe do chamado com chat interno
+  - Mudança de status com validação de transições
+  - Atribuição de técnico responsável
+  - Countdown de SLA com alerta visual
+  - Dashboard com métricas em tempo real
+  - Painel de Analytics com gráficos (gestor/admin)
+  - Gerenciamento de usuários (admin)
+  - Perfil com alteração de nome e senha
+  - Secretaria Solicitante como campo obrigatório em cada chamado
+  - Disclaimer de Acesso Remoto para chamados de TI
+
+
+================================================================================
+  2. STACK TECNOLÓGICA
+================================================================================
+
+  Frontend:
+    - Vite 5 + React 18 + TypeScript
+    - CSS puro (sem Tailwind) — Design System com variáveis CSS
+    - React Router v7
+    - Recharts (gráficos no Analytics)
+
+  Backend:
+    - Node.js 20+ + Fastify 4
+    - Prisma 6 (ORM)
+    - MySQL 8 / MariaDB 10.6+
+    - bcryptjs (hash de senhas)
+    - jsonwebtoken (JWT)
+    - @fastify/cors + @fastify/cookie
+
+  Auth:
+    - Access token JWT: 15 minutos (em memória no frontend)
+    - Refresh token JWT: 7 dias (httpOnly cookie, sameSite: strict)
+    - Renovação silenciosa automática ao expirar
+
+  Deploy target:
+    - Qualquer VPS com Node 20+ e MySQL
+    - Sem Docker obrigatório
+
+
+================================================================================
+  3. ESTRUTURA DE DIRETÓRIOS
+================================================================================
+
+  SIScom/
+  ├── api/                          ← Backend (Fastify + Prisma)
+  │   ├── prisma/
+  │   │   ├── schema.prisma         ← Definição do banco de dados
+  │   │   └── seed.ts               ← Seed inicial (áreas, usuários, templates)
+  │   ├── src/
+  │   │   ├── lib/
+  │   │   │   ├── prisma.ts         ← Cliente Prisma singleton
+  │   │   │   ├── jwt.ts            ← signAccess, signRefresh, verify
+  │   │   │   └── sla.ts            ← calcularSla(), gerarProtocolo()
+  │   │   ├── middleware/
+  │   │   │   └── authenticate.ts   ← Middleware JWT, requireRole()
+  │   │   ├── routes/
+  │   │   │   ├── auth.ts           ← /auth/login, /auth/refresh, /auth/logout, /auth/me
+  │   │   │   ├── chamados.ts       ← CRUD de chamados, status, atribuição, /tecnicos
+  │   │   │   ├── templates.ts      ← GET /templates?area_id=
+  │   │   │   ├── mensagens.ts      ← GET e POST /chamados/:id/mensagens
+  │   │   │   ├── dashboard.ts      ← GET /dashboard
+  │   │   │   ├── usuarios.ts       ← CRUD de usuários + GET /areas
+  │   │   │   ├── perfil.ts         ← PATCH /perfil (nome e senha do usuário logado)
+  │   │   │   └── analytics.ts      ← GET /analytics/*
+  │   │   └── server.ts             ← Fastify bootstrap, CORS, registro de rotas
+  │   ├── .env                      ← Variáveis de ambiente (não versionado)
+  │   └── package.json
+  │
+  └── web/                          ← Frontend (Vite + React)
+      ├── public/
+      ├── src/
+      │   ├── styles/
+      │   │   ├── tokens.css        ← Variáveis CSS globais (:root)
+      │   │   ├── components.css    ← Classes reutilizáveis (btn, card, badge, etc.)
+      │   │   └── reset.css         ← Reset minimalista
+      │   ├── components/
+      │   │   ├── layout/
+      │   │   │   ├── AppShell.tsx  ← Wrapper Sidebar + Topbar + main
+      │   │   │   ├── Sidebar.tsx   ← Navegação lateral com logo e logout
+      │   │   │   ├── Topbar.tsx    ← Barra superior com logo (mobile) e avatar
+      │   │   │   ├── Sidebar.css
+      │   │   │   └── Topbar.css
+      │   │   ├── Chat.tsx          ← Chat interno do chamado (polling 15s)
+      │   │   ├── Chat.css
+      │   │   ├── PainelAcoes.tsx   ← Painel de status + atribuição de técnico
+      │   │   ├── PainelAcoes.css
+      │   │   └── SlaCountdown.tsx  ← Countdown de SLA com cores reativas
+      │   ├── contexts/
+      │   │   └── AuthContext.tsx   ← Estado global de autenticação
+      │   ├── router/
+      │   │   └── ProtectedRoute.tsx
+      │   ├── lib/
+      │   │   └── api.ts            ← Cliente HTTP com refresh automático
+      │   ├── pages/
+      │   │   ├── Login.tsx / .css       ← Tela de login + card lateral
+      │   │   ├── Dashboard.tsx / .css   ← Cards de métricas + chamados urgentes
+      │   │   ├── Chamados.tsx / .css    ← Listagem com filtros e paginação
+      │   │   ├── Chamado.tsx / .css     ← Detalhe: header, campos, chat, sidebar
+      │   │   ├── NovoChamado.tsx / .css ← Formulário de abertura
+      │   │   ├── Usuarios.tsx / .css    ← Gestão de usuários (gestor/admin)
+      │   │   ├── Perfil.tsx / .css      ← Perfil e alteração de senha
+      │   │   ├── Analytics.tsx / .css   ← Painel de Analytics com Recharts
+      │   │   └── DesignSystem.tsx       ← Página /ds com todos os componentes
+      │   ├── App.tsx                ← Rotas e providers
+      │   ├── main.tsx
+      │   ├── SIScom Dark.png        ← Logo para fundos claros
+      │   └── SIScom White.png       ← Logo para fundos escuros
+      ├── .env                       ← VITE_API_URL
+      └── package.json
+
+
+================================================================================
+  4. MODELO DE DADOS (BANCO DE DADOS)
+================================================================================
+
+  Banco: MySQL 8 / MariaDB 10.6+
+  ORM:   Prisma 6
+  URL:   DATABASE_URL no .env da API
+
+  ── Enums ────────────────────────────────────────────────────────────────────
+
+  TipoArea:       secretaria | departamento
+
+  Role:           solicitante | tecnico | gestor | admin
+
+  StatusChamado:  ABERTO | EM_ANALISE | ATRIBUIDO | EM_ANDAMENTO
+                  | RESOLVIDO | ENCERRADO | CANCELADO
+
+  Prioridade:     critica | alta | media | baixa | normal
+
+  ── Tabelas ──────────────────────────────────────────────────────────────────
+
+  area
+    id          INT PK auto
+    nome        VARCHAR(100)
+    slug        VARCHAR(50) UNIQUE          ex: "ti", "secom"
+    tipo        ENUM(TipoArea)
+    config_json JSON nullable              { cor: "#hex" }
+    criado_em   DATETIME default now()
+
+  usuario
+    id          INT PK auto
+    nome        VARCHAR(150)
+    email       VARCHAR(200) UNIQUE
+    senha       VARCHAR(255)               bcrypt hash
+    role        ENUM(Role) default solicitante
+    ativo       BOOLEAN default true
+    area_id     FK → area.id
+    criado_em   DATETIME default now()
+
+  template_chamado
+    id              INT PK auto
+    area_id         FK → area.id
+    nome            VARCHAR(100)
+    campos_json     JSON                   array de Campo (ver estrutura abaixo)
+    sla_config_json JSON                   configuração de SLA por prioridade/formato
+    criado_em       DATETIME default now()
+
+  chamado
+    id                     INT PK auto
+    protocolo              VARCHAR(10) UNIQUE    formato: "2026-00001"
+    titulo                 VARCHAR(200)
+    descricao              TEXT
+    template_id            FK → template_chamado.id
+    area_id                FK → area.id
+    solicitante_id         FK → usuario.id
+    tecnico_id             FK → usuario.id nullable
+    status                 ENUM(StatusChamado) default ABERTO
+    prioridade             ENUM(Prioridade) default normal
+    secretaria_solicitante VARCHAR(120) nullable
+    sla_prazo              DATETIME nullable
+    aberto_em              DATETIME default now()
+    fechado_em             DATETIME nullable
+    parent_id              FK → chamado.id nullable    (incidentes em massa, v2)
+
+  campo_chamado
+    id          INT PK auto
+    chamado_id  FK → chamado.id (cascade delete)
+    chave       VARCHAR(100)
+    valor       TEXT
+
+  tag
+    id    INT PK auto
+    slug  VARCHAR(80) UNIQUE
+    label VARCHAR(80)
+    cor   VARCHAR(7)             hex "#rrggbb"
+
+  chamado_tag
+    chamado_id  FK → chamado.id (cascade delete)
+    tag_id      FK → tag.id (cascade delete)
+    PK(chamado_id, tag_id)
+
+  mensagem
+    id          INT PK auto
+    chamado_id  FK → chamado.id (cascade delete)
+    autor_id    FK → usuario.id
+    conteudo    TEXT
+    criado_em   DATETIME default now()
+
+  ativo
+    id         INT PK auto
+    patrimonio VARCHAR(50) UNIQUE
+    area_id    FK → area.id
+    tipo       VARCHAR(80)
+    dados_json JSON nullable
+
+  chamado_ativo
+    chamado_id  FK → chamado.id (cascade delete)
+    ativo_id    FK → ativo.id
+    PK(chamado_id, ativo_id)
+
+  nps
+    id          INT PK auto
+    chamado_id  INT UNIQUE
+    score       INT
+    comentario  TEXT nullable
+    criado_em   DATETIME default now()
+
+  ── Estrutura do campos_json (template) ──────────────────────────────────────
+
+  Array de objetos:
+  [
+    {
+      "chave":      "categoria",       // identificador interno (snake_case)
+      "label":      "Categoria",       // label exibida no formulário
+      "tipo":       "select",          // "text" | "textarea" | "select"
+      "obrigatorio": true,
+      "opcoes":     ["Hardware", "Software", "Rede"]   // só para tipo: select
+    }
+  ]
+
+  ── Estrutura do sla_config_json ─────────────────────────────────────────────
+
+  TI (por prioridade):
+  {
+    "critica": { "resposta_min": 15,  "resolucao_min": 120  },
+    "alta":    { "resposta_min": 30,  "resolucao_min": 240  },
+    "media":   { "resposta_min": 120, "resolucao_min": 480  },
+    "baixa":   { "resposta_min": 240, "resolucao_min": 1440 }
+  }
+
+  SECOM (por formato):
+  {
+    "Arte para redes sociais":  { "prazo_dias_uteis": 2 },
+    "Cobertura de evento":      { "prazo_dias_uteis": 3 },
+    "Redação de nota/release":  { "prazo_dias_uteis": 1 },
+    "Impresso/banner":          { "prazo_dias_uteis": 5 }
+  }
+
+
+================================================================================
+  5. AUTENTICAÇÃO E SEGURANÇA
+================================================================================
+
+  Fluxo de login:
+    1. POST /auth/login → { access_token, usuario }
+       - access_token: JWT HS256, expira em 15 min
+       - Cookie httpOnly "refresh_token": JWT HS256, expira em 7 dias
+         (sameSite: strict, path: /auth/refresh)
+
+    2. Access token armazenado em memória (variável JS) — nunca em localStorage
+
+    3. Ao receber 401 em qualquer rota:
+       - Frontend tenta POST /auth/refresh automaticamente
+       - Se OK → repete a requisição original com novo access token
+       - Se falhar → exibe "Sessão expirada. Faça login novamente."
+
+    4. POST /auth/logout → limpa o cookie refresh_token
+
+  Payload do JWT:
+    { sub: userId, email, role, area_id }
+
+  Middleware authenticate (todas as rotas protegidas):
+    - Lê header Authorization: Bearer <token>
+    - Verifica assinatura e expiração
+    - Injeta req.user = { sub, email, role, area_id }
+
+  Multitenancy:
+    - role !== 'admin' → chamados filtrados por area_id do token
+    - admin vê todas as áreas
+
+  CORS:
+    - origin: /^http:\/\/localhost(:\d+)?$/
+    - methods: GET, POST, PATCH, PUT, DELETE, OPTIONS
+    - allowedHeaders: Content-Type, Authorization
+    - credentials: true
+
+
+================================================================================
+  6. API — ENDPOINTS
+================================================================================
+
+  Base URL: http://localhost:3000
+  Todas as rotas (exceto /auth/*) requerem: Authorization: Bearer <access_token>
+
+  ── Auth ─────────────────────────────────────────────────────────────────────
+
+  POST   /auth/login
+    Body: { email, senha }
+    Ret:  { access_token, usuario: { id, nome, email, role, area } }
+
+  POST   /auth/refresh
+    (usa cookie refresh_token automaticamente)
+    Ret:  { access_token }
+
+  POST   /auth/logout
+    Ret:  { ok: true }
+
+  GET    /auth/me
+    Ret:  { usuario: { id, nome, email, role, area } }
+
+  ── Chamados ─────────────────────────────────────────────────────────────────
+
+  GET    /chamados
+    Query: status?, prioridade?, tecnico_id?, q?, page? (default 1)
+    Ret:  { chamados[], total, page, pages }
+    Note: admin vê tudo; outros veem só da sua área
+
+  POST   /chamados
+    Body: { titulo, descricao, template_id, prioridade?, secretaria_solicitante?,
+            campos?: [{chave, valor}], formato? }
+    Ret:  { chamado } (status 201)
+    Note: gera protocolo AAAA-NNNNN e calcula sla_prazo
+
+  GET    /chamados/:id
+    Ret:  { chamado } (inclui campos, mensagens, solicitante, tecnico)
+
+  PATCH  /chamados/:id/status
+    Body: { status }
+    Ret:  { chamado: { id, status, fechado_em } }
+    Transições válidas:
+      ABERTO       → EM_ANALISE, CANCELADO
+      EM_ANALISE   → ATRIBUIDO, CANCELADO
+      ATRIBUIDO    → EM_ANDAMENTO, CANCELADO
+      EM_ANDAMENTO → RESOLVIDO, CANCELADO
+      RESOLVIDO    → ENCERRADO, EM_ANDAMENTO
+
+  PATCH  /chamados/:id/atribuir
+    Body: { tecnico_id }
+    Ret:  { chamado } (inclui tecnico)
+    Perm: apenas tecnico, gestor ou admin da mesma área
+
+  ── Templates ────────────────────────────────────────────────────────────────
+
+  GET    /templates?area_id=
+    Ret:  { templates[] }
+
+  ── Mensagens (chat) ─────────────────────────────────────────────────────────
+
+  GET    /chamados/:id/mensagens
+    Ret:  { mensagens[] }
+
+  POST   /chamados/:id/mensagens
+    Body: { conteudo }
+    Ret:  { mensagem } (status 201)
+
+  ── Técnicos ─────────────────────────────────────────────────────────────────
+
+  GET    /tecnicos
+    Ret:  { tecnicos[] } (role: tecnico ou gestor, ativo: true, da área do usuário)
+    Note: admin vê todos
+
+  ── Dashboard ────────────────────────────────────────────────────────────────
+
+  GET    /dashboard
+    Ret:  { metricas: { abertos, em_andamento, resolvidos_mes,
+                        sla_vencidos, total_tecnicos, chamados_hoje },
+            urgentes: [] (top 5 por sla_prazo) }
+
+  ── Usuários (gestor/admin) ───────────────────────────────────────────────────
+
+  GET    /areas
+    Ret:  { areas[] }
+    Perm: gestor, admin
+
+  GET    /usuarios
+    Ret:  { usuarios[] }
+    Perm: gestor (vê área própria), admin (vê todos)
+
+  POST   /usuarios
+    Body: { nome, email, senha, role, area_id }
+    Ret:  { usuario } (status 201)
+    Perm: admin
+
+  PATCH  /usuarios/:id
+    Body: { nome?, email?, role?, area_id? }
+    Ret:  { usuario }
+    Perm: admin
+
+  PATCH  /usuarios/:id/ativo
+    Body: { ativo }
+    Ret:  { usuario }
+    Perm: admin (não pode desativar a si mesmo)
+
+  ── Perfil ───────────────────────────────────────────────────────────────────
+
+  PATCH  /perfil
+    Body: { nome?, senha_atual?, nova_senha? }
+    Ret:  { usuario: { id, nome, email, role, area } }
+    Note: nova_senha mínimo 6 caracteres; requer senha_atual válida
+
+  ── Analytics (gestor/admin) ─────────────────────────────────────────────────
+
+  GET    /analytics/resumo?periodo=30d&area_id=
+    Ret:  { total, resolvidos, sla_cumprido (%), tempo_medio_horas, criticos_abertos }
+
+  GET    /analytics/top-areas?periodo=30d
+    Ret:  { areas: [{ nome, total, resolvidos, vencidos }] }
+
+  GET    /analytics/top-solicitantes?periodo=30d&area_id=
+    Ret:  { solicitantes: [{ nome, total }] }
+
+  GET    /analytics/top-tecnicos?periodo=30d&area_id=
+    Ret:  { tecnicos: [{ nome, total, resolvidos }] }
+
+  GET    /analytics/por-status?periodo=30d&area_id=
+    Ret:  { dados: [{ status, total }] }
+
+  GET    /analytics/por-prioridade?periodo=30d&area_id=
+    Ret:  { dados: [{ prioridade, total }] }
+
+  GET    /analytics/alertas
+    Ret:  { alertas: [{ tipo, mensagem, nivel }] }
+
+  Parâmetro periodo: "7d" | "30d" | "90d"
+
+
+================================================================================
+  7. FRONTEND — PÁGINAS E ROTAS
+================================================================================
+
+  Rotas:
+    /login              → Login.tsx               (pública)
+    /ds                 → DesignSystem.tsx         (pública, referência visual)
+    /                   → redireciona para /dashboard
+    /dashboard          → Dashboard.tsx            (protegida)
+    /chamados           → Chamados.tsx             (protegida)
+    /chamados/novo      → NovoChamado.tsx          (protegida)
+    /chamados/:id       → Chamado.tsx              (protegida)
+    /usuarios           → Usuarios.tsx             (protegida — gestor/admin)
+    /perfil             → Perfil.tsx               (protegida)
+    /analytics          → Analytics.tsx            (protegida — gestor/admin)
+
+  Proteção de rota:
+    - ProtectedRoute verifica token em memória
+    - Se não autenticado → redireciona para /login
+
+  Navegação (Sidebar):
+    Item          Ícone   Roles permitidas
+    Dashboard     ⊞       todas
+    Chamados      ≡       todas
+    Novo Chamado  +       todas
+    Usuários      ◉       gestor, admin
+    Analytics     ▲       gestor, admin
+
+  Auth Context (useAuth):
+    - usuario: { id, nome, email, role, area: { id, slug, nome } }
+    - login(email, senha): POST /auth/login → salva token e usuario
+    - logout(): POST /auth/logout → limpa token e redireciona
+    - Renovação automática silenciosa via tryRefresh()
+
+  Páginas — comportamento relevante:
+
+    Login.tsx
+      - Dois painéis: formulário (esquerda) + card informativo (direita)
+      - Card direito: credenciais padrão (webmail + data de nascimento)
+      - Card direito: placeholder de Calendário de Eventos (em breve)
+
+    Dashboard.tsx
+      - 6 cards: Abertos, Em Andamento, Resolvidos no Mês,
+                 SLA Vencidos, Total Técnicos, Chamados Hoje
+      - Tabela: 5 chamados mais urgentes (sla_prazo mais próximo)
+
+    Chamados.tsx
+      - Filtros: status, prioridade, busca por texto
+      - Tabela com badge de status, tag de prioridade, SlaCountdown
+      - Paginação (20 por página)
+
+    Chamado.tsx (detalhe)
+      - Header: protocolo, status, prioridade, solicitante, SLA
+      - Seção de descrição e campos do template
+      - Chat interno (Chat.tsx — polling a cada 15s)
+      - Sidebar de ações (PainelAcoes.tsx)
+      - Painel de informações: secretaria, área, template, técnico
+
+    NovoChamado.tsx
+      - Campos fixos: Título, Secretaria Solicitante (obrigatório), Prioridade, Descrição
+      - Campos dinâmicos do template da área do usuário
+      - Disclaimer de Acesso Remoto para usuários da área TI
+      - Submit desabilitado sem título, descrição e secretaria
+
+    Usuarios.tsx
+      - Tabela com todos os usuários (filtrada por área se gestor)
+      - Botão "Novo Usuário" → modal com formulário
+      - Toggle ativo/inativo por linha
+      - Modal de edição por linha
+
+    Perfil.tsx
+      - Card de informações: avatar com iniciais, nome, e-mail, role, área
+      - Formulário: alterar nome e/ou senha (requer senha atual)
+
+    Analytics.tsx
+      - Filtro de período: 7d / 30d / 90d
+      - Alertas automáticos (nível: info, warning, danger)
+      - 5 cards de métricas (com RadialBarChart de taxa SLA)
+      - BarChart: top áreas, top solicitantes, top técnicos
+      - PieChart: distribuição por status e prioridade
+
+  SlaCountdown.tsx:
+    - Verde: prazo no futuro (> 50% restante)
+    - Laranja: prazo próximo (< 50% do prazo original restante)
+    - Vermelho/piscando: vencido
+    - Exibe em "Xh Ym" ou "Vencido"
+
+
+================================================================================
+  8. DESIGN SYSTEM
+================================================================================
+
+  Arquivo fonte: web/src/styles/tokens.css
+
+  Paleta principal:
+    --ink:        #0d1433    (texto e sidebar)
+    --ink-mid:    #2b3278    (sidebar hover, card lateral login)
+    --ink-soft:   #5262c4    (destaques secundários)
+    --paper:      #f7f6f2    (fundo da página — nunca branco puro)
+    --paper-dark: #eeecea    (zebra de tabela, hover sutil)
+    --line:       #d4d2cc    (bordas, divisores)
+    --accent:     #0066cc    (ação principal, links ativos)
+
+  Semânticas:
+    --sem-success:    #4a6741  / bg: #eef2ec  / bd: #b5c9b1
+    --sem-warning:    #7a5c1e  / bg: #f5eddb  / bd: #d4b87a
+    --sem-danger:     #6b2233  / bg: #f2e8eb  / bd: #c49aaa
+    --sem-info:       #1e3f6b  / bg: #e8eef5  / bd: #9ab3d0
+
+  Tipografia:
+    --mono: 'JetBrains Mono', monospace  (UI: labels, badges, títulos)
+    --sans: 'Inter', 'Nunito Sans', Arial (corpo de texto)
+    Escala: --text-xs (12px) → --text-4xl (48px)
+
+  Espaçamento: grid de 4px → --space-1 (4px) até --space-16 (64px)
+
+  Border radius:
+    --radius-sm (4px), --radius-md (6px), --radius-lg (8px),
+    --radius-xl (12px), --radius-2xl (16px), --radius-full (9999px)
+
+  Filosofia visual:
+    - Cantos retos por padrão (seriedade institucional)
+    - Sidebar escura (--ink) com borda 2px solid --ink-mid
+    - Topbar branca, borda inferior 1px solid --line
+    - Item ativo na sidebar: border-left 2px solid --accent
+    - Fundo da página: --paper, nunca branco puro
+    - Nenhuma cor hex fora de tokens.css
+
+  Classes utilitárias principais:
+    .card                   container com fundo branco e sombra sutil
+    .card-header / .card-title
+    .btn .btn-primary       botão principal (azul, lift no hover)
+    .btn .btn-secondary     botão secundário (borda)
+    .badge .badge-{variant} status do chamado
+    .tag .tag-{prioridade}  prioridade uppercase
+    .alert .alert-{variant} mensagens de feedback (borda esquerda 3px)
+    .form-input             input padrão
+    .form-select            select padrão
+    .form-textarea          textarea padrão
+    .form-label             label com font-family: mono
+    .required               span vermelho para campos obrigatórios
+
+  Responsividade (desktop-first):
+    1280px+   layout completo, sidebar 220px
+    1024px    sidebar icon-only (64px), labels sumidas
+    768px     sidebar vira drawer/overlay, logo aparece na topbar
+    480px     coluna única, tabelas com scroll horizontal
+
+  Logos:
+    SIScom Dark.png   — para fundos claros (Login, Topbar)
+    SIScom White.png  — para fundos escuros (Sidebar)
+
+
+================================================================================
+  9. SLA — REGRAS DE NEGÓCIO
+================================================================================
+
+  TI — por prioridade (tempo de resolução):
+    Crítica   →  2 horas  (120 min)
+    Alta      →  4 horas  (240 min)
+    Média     →  8 horas  (480 min)
+    Baixa     → 24 horas (1440 min)
+    Normal    →  sem SLA definido
+
+  SECOM — por formato de entrega (dias úteis):
+    Arte para redes sociais   → 2 dias úteis
+    Cobertura de evento       → 3 dias úteis
+    Redação de nota/release   → 1 dia útil
+    Impresso/banner           → 5 dias úteis
+
+  Cálculo:
+    - TI: sla_prazo = agora + resolucao_min minutos
+    - SECOM: sla_prazo = agora + N dias úteis (pula sábado e domingo)
+    - Calculado no POST /chamados, imutável após criação
+
+  Geração de protocolo:
+    - Formato: AAAA-NNNNN (ex: 2026-00001)
+    - Sequencial dentro do ano calendário
+    - Imutável após criação
+
+  Transições de status:
+    ABERTO       → EM_ANALISE | CANCELADO
+    EM_ANALISE   → ATRIBUIDO | CANCELADO
+    ATRIBUIDO    → EM_ANDAMENTO | CANCELADO
+    EM_ANDAMENTO → RESOLVIDO | CANCELADO
+    RESOLVIDO    → ENCERRADO | EM_ANDAMENTO
+    Qualquer tentativa fora das transições válidas → HTTP 400
+
+
+================================================================================
+  10. USUÁRIOS DE TESTE (SEED)
+================================================================================
+
+  Executar: cd api && pnpm db:seed
+
+  ┌─────────────────────────────────────────┬──────────────┬─────────────┬──────────────────────┐
+  │ E-mail                                  │ Senha        │ Role        │ Área                 │
+  ├─────────────────────────────────────────┼──────────────┼─────────────┼──────────────────────┤
+  │ admin@jaguariaiva.pr.gov.br             │ admin123     │ admin       │ TI                   │
+  │ tecnico.ti@jaguariaiva.pr.gov.br        │ senha123     │ tecnico     │ TI                   │
+  │ tecnico.secom@jaguariaiva.pr.gov.br     │ senha123     │ tecnico     │ SECOM                │
+  │ solicitante@jaguariaiva.pr.gov.br       │ senha123     │ solicitante │ TI                   │
+  └─────────────────────────────────────────┴──────────────┴─────────────┴──────────────────────┘
+
+  Áreas criadas:
+    TI    — slug: "ti",    tipo: departamento, cor: #1e3f6b
+    SECOM — slug: "secom", tipo: secretaria,   cor: #4a6741
+
+  Templates criados:
+    ID 1: "Suporte TI"    → campos: patrimônio, IP, categoria
+    ID 2: "Demanda SECOM" → campos: briefing, formato, canal
+
+  Credencial padrão para usuários reais (produção):
+    E-mail: <inicial do nome><sobrenome>@jaguariaiva.pr.gov.br
+    Ex:     ggavioli@jaguariaiva.pr.gov.br
+    Senha inicial: data de nascimento sem separadores (ex: 15031990)
+
+
+================================================================================
+  11. VARIÁVEIS DE AMBIENTE
+================================================================================
+
+  api/.env:
+    DATABASE_URL="mysql://usuario:senha@localhost:3306/siscom"
+    JWT_SECRET="chave-secreta-longa-e-aleatoria"
+    PORT=3000
+
+  web/.env (opcional):
+    VITE_API_URL=http://localhost:3000
+    (padrão: http://localhost:3000 se não definido)
+
+
+================================================================================
+  12. COMANDOS DO PROJETO
+================================================================================
+
+  ── Instalar dependências ─────────────────────────────────────────────────────
+
+    cd api  && pnpm install
+    cd web  && pnpm install
+
+  ── Banco de dados ───────────────────────────────────────────────────────────
+
+    cd api
+    pnpm db:push      → aplica schema sem migration (dev rápido)
+    pnpm db:seed      → popula banco com dados iniciais
+    pnpm db:studio    → abre Prisma Studio em http://localhost:5555
+
+    Para migration formal:
+    npx prisma migrate dev --name "nome_da_migration"
+
+  ── Desenvolvimento ───────────────────────────────────────────────────────────
+
+    cd api && pnpm dev    → API em http://localhost:3000
+    cd web && pnpm dev    → Frontend em http://localhost:5173
+
+  ── Build de produção ────────────────────────────────────────────────────────
+
+    cd web && pnpm build  → dist/ pronto para servir
+    cd api && pnpm build  → compila TypeScript para dist/
+
+  ── Utilitários ──────────────────────────────────────────────────────────────
+
+    GET http://localhost:3000/health     → { status: "ok", timestamp }
+    http://localhost:5173/ds             → página do Design System
+
+
+================================================================================
+  13. ROADMAP — FASES CONCLUÍDAS E FUTURAS
+================================================================================
+
+  ✓ FASE 1 — Setup & Infraestrutura
+      Scaffold Vite + React + TypeScript (web)
+      Scaffold Fastify + TypeScript (api)
+      Prisma schema completo com todas as tabelas
+      Seed: 2 áreas, 4 usuários, 2 templates
+
+  ✓ FASE 2 — Design System
+      tokens.css com variáveis completas
+      Componentes base: Badge, Tag, Alert, FormInput
+      AppShell: Sidebar + Topbar
+      Responsividade: 1280 / 1024 / 768 / 480px
+      Logos SIScom implementadas (dark/white)
+
+  ✓ FASE 3 — Autenticação
+      POST /auth/login, /auth/refresh, /auth/logout, /auth/me
+      Middleware authenticate + requireRole
+      AuthContext + useAuth hook
+      ProtectedRoute
+      Renovação silenciosa de token
+
+  ✓ FASE 4 — Core de Chamados
+      GET/POST /chamados, GET /chamados/:id
+      GET /templates?area_id=
+      Formulário NovoChamado com campos dinâmicos por template
+      Listagem com filtros, badge e paginação
+      Detalhe do chamado completo
+
+  ✓ FASE 5 — Interações & SLA
+      PATCH /chamados/:id/status (transições validadas)
+      PATCH /chamados/:id/atribuir
+      GET/POST /chamados/:id/mensagens
+      Chat.tsx com polling a cada 15 segundos
+      PainelAcoes.tsx (status + atribuição, bloqueado por role)
+      SlaCountdown.tsx (verde/laranja/vermelho)
+
+  ✓ FASE 6 — Dashboard
+      GET /dashboard com 6 métricas
+      Dashboard.tsx com cards e tabela de urgentes
+      (SMTP/e-mail: fora do MVP — notificações futuras)
+
+  ✓ FASE 7 — Analytics
+      6 endpoints /analytics/*
+      Analytics.tsx com Recharts (Bar, Pie, RadialBar)
+      Filtro de período 7d/30d/90d
+      Alertas automáticos por threshold
+
+  ✓ FASE 8 — Gestão de Usuários e Perfil
+      GET/POST/PATCH /usuarios, GET /areas
+      Usuarios.tsx com modal de criação/edição e toggle ativo
+      PATCH /perfil
+      Perfil.tsx com alteração de nome e senha
+
+  ✓ EXTRAS implementados no MVP:
+      Campo "Secretaria Solicitante" (16 secretarias municipais)
+      Disclaimer de Acesso Remoto para TI no NovoChamado
+      Card lateral na tela de Login (credenciais + placeholder calendário)
+      Logout na sidebar
+
+  ── FUTURO (v2+) ──────────────────────────────────────────────────────────────
+
+  FASE 9 — Notificações por E-mail (SMTP)
+      Envio ao solicitante em mudança de status
+      Alerta de SLA vencido (cron a cada 5 min)
+
+  FASE 10 — Calendário de Eventos (SECOM)
+      Visualização Kanban e Calendário dos chamados de mídia/eventos
+      Integrado ao campo da tela de Login (placeholder atual)
+      Datas de cobertura agendadas, prazos importantes
+
+  FASE 11 — Mockup Social Media (SECOM)
+      Template montável estilo mockup Instagram, Facebook, WhatsApp Status
+      Upload de arte gráfica com pré-visualização in-app
+      Campo no template SECOM: subir arte e ver como vai ficar
+
+  FASE 12 — CMDB Leve / Inventário de Ativos (TI)
+      Aba para cadastrar número de patrimônio e especificações
+      Ao informar patrimônio no chamado → puxa dados do ativo automaticamente
+      Campos: patrimônio, tipo, marca, modelo, processador, RAM, HD, OS, local
+
+  FASE 13 — Tags Globais entre Áreas
+      Tags transversais para agrupar demandas de um mesmo evento
+      Ex: #AniversarioDaCidade — agrupa chamados de TI e SECOM
+
+  FASE 14 — Detecção de Incidente em Massa (TI)
+      Quando N chamados do mesmo tipo abrem no intervalo X:
+      Cria chamado-pai, bloqueia duplicatas, dispara aviso em massa
+
+  FASE 15 — NPS Automatizado
+      Pesquisa de satisfação enviada ao solicitante após encerramento
+      Score 0-10 + comentário opcional, armazenado em nps
+
+  FASE 16 — Base de Conhecimento / Wiki
+      Artigos internos de resolução de problemas recorrentes
+      Sugestão automática de artigo ao abrir chamado similar
+
+  FASE 17 — Workflow de Aprovação Multi-nível
+      Chamados que passam por aprovação de gestor antes de chegar à equipe
+      Configurável por template
+
+================================================================================
+
+  Prefeitura Municipal de Jaguariaíva · Paraná
+  Secretaria Municipal de Comunicação — SIScom
+  Maio 2026
+
+================================================================================

@@ -94,10 +94,11 @@ model Chamado {
   area_id        Int
   solicitante_id Int
   tecnico_id     Int?
-  status         StatusChamado @default(ABERTO)
-  prioridade     Prioridade    @default(normal)
-  sla_prazo      DateTime?
-  aberto_em      DateTime      @default(now())
+  status                  StatusChamado @default(ABERTO)
+  prioridade              Prioridade    @default(normal)
+  secretaria_solicitante  String?       @db.VarChar(120)
+  sla_prazo               DateTime?
+  aberto_em               DateTime      @default(now())
   fechado_em     DateTime?
   parent_id      Int?
 

@@ -1,11 +1,11 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
-import { createHash } from "crypto";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
-function hashSenha(senha: string) {
-  return createHash("sha256").update(senha).digest("hex");
+async function hashSenha(senha: string) {
+  return bcrypt.hash(senha, 10);
 }
 
 async function main() {
@@ -35,11 +35,11 @@ async function main() {
   // Usuários
   await prisma.usuario.upsert({
     where: { email: "admin@jaguariaiva.pr.gov.br" },
-    update: {},
+    update: { senha: await hashSenha("admin123") },
     create: {
       nome: "Administrador",
       email: "admin@jaguariaiva.pr.gov.br",
-      senha: hashSenha("admin123"),
+      senha: await hashSenha("admin123"),
       role: "admin",
       area_id: ti.id,
     },
@@ -47,11 +47,11 @@ async function main() {
 
   await prisma.usuario.upsert({
     where: { email: "tecnico.ti@jaguariaiva.pr.gov.br" },
-    update: {},
+    update: { senha: await hashSenha("senha123") },
     create: {
       nome: "João Silva",
       email: "tecnico.ti@jaguariaiva.pr.gov.br",
-      senha: hashSenha("senha123"),
+      senha: await hashSenha("senha123"),
       role: "tecnico",
       area_id: ti.id,
     },
@@ -59,11 +59,11 @@ async function main() {
 
   await prisma.usuario.upsert({
     where: { email: "tecnico.secom@jaguariaiva.pr.gov.br" },
-    update: {},
+    update: { senha: await hashSenha("senha123") },
     create: {
       nome: "Maria Oliveira",
       email: "tecnico.secom@jaguariaiva.pr.gov.br",
-      senha: hashSenha("senha123"),
+      senha: await hashSenha("senha123"),
       role: "tecnico",
       area_id: secom.id,
     },
@@ -71,11 +71,11 @@ async function main() {
 
   await prisma.usuario.upsert({
     where: { email: "solicitante@jaguariaiva.pr.gov.br" },
-    update: {},
+    update: { senha: await hashSenha("senha123") },
     create: {
       nome: "Carlos Souza",
       email: "solicitante@jaguariaiva.pr.gov.br",
-      senha: hashSenha("senha123"),
+      senha: await hashSenha("senha123"),
       role: "solicitante",
       area_id: ti.id,
     },
