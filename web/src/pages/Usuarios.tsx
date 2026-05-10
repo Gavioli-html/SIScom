@@ -5,7 +5,6 @@ import { useAuth } from '../contexts/AuthContext'
 import './Usuarios.css'
 
 interface Area { id: number; nome: string; slug: string }
-
 interface Usuario {
   id: number
   nome: string
@@ -27,15 +26,14 @@ const ROLE_BADGE: Record<string, string> = {
 }
 
 interface FormState {
-  nome: string; email: string; senha: string; role: string; area_id: string
+  nome: string; email: string; senha: string; role: string
 }
 
-const FORM_VAZIO: FormState = { nome: '', email: '', senha: '', role: 'solicitante', area_id: '' }
+const FORM_VAZIO: FormState = { nome: '', email: '', senha: '', role: 'solicitante' }
 
 export default function Usuarios() {
   const { usuario: eu } = useAuth()
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
-  const [areas, setAreas] = useState<Area[]>([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState<'criar' | 'editar' | null>(null)
   const [editando, setEditando] = useState<Usuario | null>(null)
@@ -50,20 +48,17 @@ export default function Usuarios() {
       .then(d => setUsuarios(d.usuarios))
       .finally(() => setLoading(false))
 
-  useEffect(() => {
-    carregar()
-    api.get<{ areas: Area[] }>('/areas').then(d => setAreas(d.areas))
-  }, [])
+  useEffect(() => { carregar() }, [])
 
   const abrirCriar = () => {
-    setForm({ ...FORM_VAZIO, area_id: areas[0]?.id ? String(areas[0].id) : '' })
+    setForm(FORM_VAZIO)
     setEditando(null)
     setErro('')
     setModal('criar')
   }
 
   const abrirEditar = (u: Usuario) => {
-    setForm({ nome: u.nome, email: u.email, senha: '', role: u.role, area_id: String(u.area.id) })
+    setForm({ nome: u.nome, email: u.email, senha: '', role: u.role })
     setEditando(u)
     setErro('')
     setModal('editar')
@@ -79,10 +74,10 @@ export default function Usuarios() {
     setSalvando(true)
     try {
       if (modal === 'criar') {
-        await api.post('/usuarios', { ...form, area_id: Number(form.area_id) })
+        await api.post('/usuarios', { ...form })
       } else if (editando) {
         const payload: Record<string, unknown> = {
-          nome: form.nome, email: form.email, role: form.role, area_id: Number(form.area_id),
+          nome: form.nome, email: form.email, role: form.role,
         }
         if (form.senha.trim()) payload.senha = form.senha
         await api.patch(`/usuarios/${editando.id}`, payload)
@@ -105,6 +100,16 @@ export default function Usuarios() {
     }
   }
 
+  const remover = async (u: Usuario) => {
+    if (!confirm(`Excluir permanentemente "${u.nome}"?\n\nEsta ação não pode ser desfeita.`)) return
+    try {
+      await api.delete(`/usuarios/${u.id}`)
+      await carregar()
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Erro ao excluir usuário')
+    }
+  }
+
   return (
     <AppShell>
       <div className="usr-page">
@@ -121,6 +126,7 @@ export default function Usuarios() {
           ) : usuarios.length === 0 ? (
             <p className="usr-empty">Nenhum usuário encontrado.</p>
           ) : (
+            <div className="usr-table-wrap">
             <table className="usr-table">
               <thead>
                 <tr>
@@ -161,12 +167,22 @@ export default function Usuarios() {
                             {u.ativo ? 'Desativar' : 'Ativar'}
                           </button>
                         )}
+                        {u.id !== eu?.id && (
+                          <button
+                            className="btn btn-sm btn-danger"
+                            onClick={() => remover(u)}
+                            title="Excluir permanentemente"
+                          >
+                            Excluir
+                          </button>
+                        )}
                       </td>
                     )}
                   </tr>
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       </div>
@@ -200,21 +216,11 @@ export default function Usuarios() {
                 <input id="u-senha" type="password" className="form-input" value={form.senha} onChange={set('senha')} />
               </div>
 
-              <div className="usr-form-row">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="u-role">Perfil <span className="required">*</span></label>
-                  <select id="u-role" className="form-select" value={form.role} onChange={set('role')}>
-                    {ROLES.map(r => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="u-area">Área <span className="required">*</span></label>
-                  <select id="u-area" className="form-select" value={form.area_id} onChange={set('area_id')}>
-                    <option value="">Selecione...</option>
-                    {areas.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
-                  </select>
-                </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="u-role">Perfil <span className="required">*</span></label>
+                <select id="u-role" className="form-select" value={form.role} onChange={set('role')}>
+                  {ROLES.map(r => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
+                </select>
               </div>
             </div>
 

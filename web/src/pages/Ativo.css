@@ -1,0 +1,213 @@
+.ativo-loading {
+  padding: var(--space-8);
+  text-align: center;
+  color: var(--ink-soft);
+  font-family: var(--mono);
+}
+
+.ativo-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.ativo-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  text-decoration: none;
+  font-family: var(--mono);
+  transition: color var(--ease);
+  margin-bottom: var(--space-2);
+}
+.ativo-back:hover { color: var(--accent); }
+
+.ativo-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.ativo-header-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ativo-patrimonio-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.ativo-patrimonio {
+  font-family: var(--mono);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+}
+
+.ativo-titulo {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.ativo-tipo-label {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Specs DL */
+.ativo-specs {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-2) var(--space-6);
+  padding: var(--space-4) var(--space-5);
+  margin: 0;
+}
+
+.ativo-specs dt {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+  padding-top: 2px;
+}
+
+.ativo-specs dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.ativo-mono {
+  font-family: var(--mono);
+  font-size: var(--text-xs) !important;
+  color: var(--ink-mid);
+}
+
+.ativo-obs {
+  border-top: 1px solid var(--line);
+  padding: var(--space-4) var(--space-5);
+}
+.ativo-obs-label {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: var(--space-2);
+}
+.ativo-obs p {
+  font-size: var(--text-sm);
+  color: var(--ink);
+  margin: 0;
+  white-space: pre-line;
+}
+
+/* Chamados list */
+.ativo-empty {
+  padding: var(--space-6) var(--space-5);
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  font-family: var(--mono);
+}
+
+.card-count {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  background: var(--paper-dark);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+  padding: 2px var(--space-2);
+  color: var(--ink-soft);
+}
+
+.ativo-chamados-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ativo-chamado-item {
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--line);
+  transition: background var(--ease);
+}
+.ativo-chamado-item:last-child { border-bottom: none; }
+.ativo-chamado-item:hover { background: var(--paper); }
+
+.ativo-chamado-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-1);
+}
+
+.ativo-chamado-proto {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  color: var(--accent);
+  text-decoration: none;
+}
+.ativo-chamado-proto:hover { text-decoration: underline; }
+
+.ativo-chamado-titulo {
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.ativo-chamado-meta {
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  margin-top: var(--space-1);
+}
+
+/* Modal reuses .ativos-modal styles from Ativos.css — shared class names */
+.ativo-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(13, 20, 51, .60);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: var(--space-4);
+  backdrop-filter: blur(4px);
+}
+
+.ativo-modal {
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  animation: modal-in 0.20s cubic-bezier(.22,.68,0,1.1);
+}
+
+.ativo-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.ativo-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}

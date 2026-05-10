@@ -15,8 +15,10 @@
   font-size: var(--text-xs);
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   color: var(--ink-soft);
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--line);
 }
 
 .painel-btns {
@@ -34,9 +36,53 @@
   flex: 1;
 }
 
+.painel-tecnicos-lista {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.painel-tecnico-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--text-sm);
+  padding: var(--space-2) var(--space-3);
+  background: var(--paper-dark);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  transition: background var(--ease), border-color var(--ease);
+}
+
+.painel-tecnico-item:hover {
+  background: var(--paper);
+  border-color: var(--ink-soft);
+}
+
+.painel-tecnico-remover {
+  background: none;
+  border: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  padding: 0 var(--space-1);
+  line-height: 1;
+  transition: color var(--ease);
+}
+
+.painel-tecnico-remover:hover {
+  color: var(--sem-danger);
+}
+
 .painel-encerrado {
   font-size: var(--text-sm);
   color: var(--ink-soft);
+  font-family: var(--mono);
   text-align: center;
-  padding: var(--space-2) 0;
+  padding: var(--space-3) 0;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-sm);
 }

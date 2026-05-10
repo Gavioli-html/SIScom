@@ -9,6 +9,9 @@ import NovoChamado from './pages/NovoChamado'
 import Usuarios from './pages/Usuarios'
 import Perfil from './pages/Perfil'
 import Analytics from './pages/Analytics'
+import Calendario from './pages/Calendario'
+import Ativos from './pages/Ativos'
+import Ativo from './pages/Ativo'
 import DesignSystem from './pages/DesignSystem'
 import AppShell from './components/layout/AppShell'
 
@@ -27,6 +30,9 @@ export default function App() {
           <Route path="/usuarios" element={<ProtectedRoute><Usuarios /></ProtectedRoute>} />
           <Route path="/perfil" element={<ProtectedRoute><Perfil /></ProtectedRoute>} />
           <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+          <Route path="/calendario" element={<ProtectedRoute><Calendario /></ProtectedRoute>} />
+          <Route path="/ativos" element={<ProtectedRoute><Ativos /></ProtectedRoute>} />
+          <Route path="/ativos/:id" element={<ProtectedRoute><Ativo /></ProtectedRoute>} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

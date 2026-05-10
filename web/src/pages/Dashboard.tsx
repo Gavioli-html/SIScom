@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import AppShell from '../components/layout/AppShell'
 import SlaCountdown from '../components/SlaCountdown'
 import { api } from '../lib/api'
+import { useAuth } from '../contexts/AuthContext'
 import './Dashboard.css'
 
 interface Urgente {
@@ -13,7 +14,7 @@ interface Urgente {
   prioridade: string
   sla_prazo: string | null
   area: { nome: string }
-  tecnico: { nome: string } | null
+  tecnicos: { tecnico: { nome: string } }[]
 }
 
 interface Metricas {
@@ -26,6 +27,7 @@ interface Metricas {
 interface DashboardData {
   metricas: Metricas
   urgentes: Urgente[]
+  anotacao: string | null
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -46,14 +48,39 @@ const PRIO_TAG: Record<string, string> = {
 }
 
 export default function Dashboard() {
+  const { usuario } = useAuth()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [anotacao, setAnotacao] = useState('')
+  const [anotacaoSalva, setAnotacaoSalva] = useState('')
+  const [salvandoNota, setSalvandoNota] = useState(false)
+  const [notaSucesso, setNotaSucesso] = useState(false)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const isAdmin = usuario?.role === 'admin'
 
   useEffect(() => {
     api.get<DashboardData>('/dashboard')
-      .then(setData)
+      .then(d => {
+        setData(d)
+        setAnotacao(d.anotacao ?? '')
+        setAnotacaoSalva(d.anotacao ?? '')
+      })
       .finally(() => setLoading(false))
   }, [])
+
+  const salvarNota = async () => {
+    setSalvandoNota(true)
+    try {
+      await api.patch('/anotacao', { conteudo: anotacao })
+      setAnotacaoSalva(anotacao)
+      setNotaSucesso(true)
+      if (timerRef.current) clearTimeout(timerRef.current)
+      timerRef.current = setTimeout(() => setNotaSucesso(false), 2500)
+    } finally {
+      setSalvandoNota(false)
+    }
+  }
 
   if (loading) return (
     <AppShell>
@@ -128,7 +155,9 @@ export default function Dashboard() {
                       <SlaCountdown prazo={c.sla_prazo} status={c.status} />
                     </td>
                     <td className="dash-tecnico">
-                      {c.tecnico?.nome ?? <span style={{ color: 'var(--line)' }}>—</span>}
+                      {c.tecnicos.length === 0
+                        ? <span style={{ color: 'var(--line)' }}>—</span>
+                        : c.tecnicos.map(t => t.tecnico.nome).join(', ')}
                     </td>
                   </tr>
                 ))}
@@ -136,6 +165,45 @@ export default function Dashboard() {
             </table>
           )}
         </div>
+
+        {(isAdmin || anotacaoSalva) && (
+          <div className="card dash-nota-card">
+            <div className="card-header">
+              <span className="card-title">📌 Mural de Avisos</span>
+              {notaSucesso && <span className="dash-nota-ok">Salvo!</span>}
+            </div>
+            {isAdmin ? (
+              <div className="dash-nota-editor">
+                <textarea
+                  className="form-textarea dash-nota-textarea"
+                  rows={4}
+                  placeholder="Deixe um aviso para a equipe..."
+                  value={anotacao}
+                  onChange={e => setAnotacao(e.target.value)}
+                />
+                <div className="dash-nota-actions">
+                  {anotacao !== anotacaoSalva && (
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => setAnotacao(anotacaoSalva)}
+                    >
+                      Descartar
+                    </button>
+                  )}
+                  <button
+                    className="btn btn-primary"
+                    onClick={salvarNota}
+                    disabled={salvandoNota || anotacao === anotacaoSalva}
+                  >
+                    {salvandoNota ? 'Salvando...' : 'Salvar aviso'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="dash-nota-texto">{anotacaoSalva}</p>
+            )}
+          </div>
+        )}
       </div>
     </AppShell>
   )

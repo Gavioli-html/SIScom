@@ -34,9 +34,15 @@ export function calcularSla(
     return addMinutes(agora, (config[prioridade] as { resolucao_min: number }).resolucao_min)
   }
 
-  // SECOM — por formato de entrega
-  if (formato && config[formato]?.prazo_dias_uteis !== undefined) {
-    return addDiasUteis(agora, config[formato].prazo_dias_uteis)
+  // SECOM — por formato de entrega (pode ser múltiplos, separados por vírgula)
+  if (formato) {
+    const formatos = formato.split(',').filter(Boolean)
+    const prazos = formatos
+      .map(f => (config[f.trim()] as { prazo_dias_uteis?: number } | undefined)?.prazo_dias_uteis)
+      .filter((p): p is number => p !== undefined)
+    if (prazos.length > 0) {
+      return addDiasUteis(agora, Math.max(...prazos))
+    }
   }
 
   return null

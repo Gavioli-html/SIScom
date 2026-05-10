@@ -1,12 +1,12 @@
 import { FastifyInstance } from 'fastify'
 import prisma from '../lib/prisma.js'
-import { authenticate } from '../middleware/authenticate.js'
+import { authenticate, requireRole } from '../middleware/authenticate.js'
 
 export async function dashboardRoutes(app: FastifyInstance) {
   app.get('/dashboard', { preHandler: authenticate }, async (req) => {
-    const { area_id, role } = req.user
+    const { area_id } = req.user
 
-    const areaFilter = role === 'admin' ? {} : { area_id }
+    const areaFilter = { area_id }
 
     const agora = new Date()
     const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1)
@@ -54,10 +54,16 @@ export async function dashboardRoutes(app: FastifyInstance) {
           prioridade: true,
           sla_prazo: true,
           area: { select: { nome: true } },
-          tecnico: { select: { nome: true } },
+          tecnicos: { select: { tecnico: { select: { nome: true } } } },
         },
       }),
     ])
+
+    const area = await prisma.area.findUnique({
+      where: { id: area_id },
+      select: { config_json: true },
+    })
+    const config = (area?.config_json ?? {}) as Record<string, unknown>
 
     return {
       metricas: {
@@ -67,6 +73,37 @@ export async function dashboardRoutes(app: FastifyInstance) {
         vencidos,
       },
       urgentes,
+      anotacao: (config.anotacao as string | null) ?? null,
     }
+  })
+
+  // GET /anotacao — lê anotação da área
+  app.get('/anotacao', { preHandler: authenticate }, async (req) => {
+    const { area_id } = req.user
+    const area = await prisma.area.findUnique({
+      where: { id: area_id },
+      select: { config_json: true },
+    })
+    const config = (area?.config_json ?? {}) as Record<string, unknown>
+    return { anotacao: (config.anotacao as string | null) ?? null }
+  })
+
+  // PATCH /anotacao — salva anotação (admin only)
+  app.patch('/anotacao', { preHandler: [authenticate, requireRole('admin')] }, async (req) => {
+    const { area_id } = req.user
+    const { conteudo } = req.body as { conteudo: string }
+
+    const area = await prisma.area.findUnique({
+      where: { id: area_id },
+      select: { config_json: true },
+    })
+    const config = { ...((area?.config_json ?? {}) as Record<string, unknown>), anotacao: conteudo ?? null }
+
+    await prisma.area.update({
+      where: { id: area_id },
+      data: { config_json: config as never },
+    })
+
+    return { anotacao: config.anotacao }
   })
 }

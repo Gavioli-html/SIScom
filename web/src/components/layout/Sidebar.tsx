@@ -9,18 +9,21 @@ interface SidebarProps {
 }
 
 const NAV_ITEMS = [
-  { icon: '⊞', label: 'Dashboard', href: '/dashboard', roles: null },
-  { icon: '≡', label: 'Chamados', href: '/chamados', roles: null },
-  { icon: '+', label: 'Novo Chamado', href: '/chamados/novo', roles: null },
-  { icon: '◉', label: 'Usuários', href: '/usuarios', roles: ['gestor', 'admin'] },
-  { icon: '▲', label: 'Analytics', href: '/analytics', roles: ['gestor', 'admin'] },
+  { icon: '⊞', label: 'Dashboard', href: '/dashboard', roles: null, areas: null },
+  { icon: '≡', label: 'Chamados', href: '/chamados', roles: null, areas: null },
+  { icon: '+', label: 'Novo Chamado', href: '/chamados/novo', roles: null, areas: null },
+  { icon: '▦', label: 'Calendário', href: '/calendario', roles: null, areas: ['secom'] },
+  { icon: '◈', label: 'Patrimônio', href: '/ativos', roles: ['tecnico', 'gestor', 'admin'], areas: ['ti'] },
+  { icon: '◉', label: 'Usuários', href: '/usuarios', roles: ['gestor', 'admin'], areas: null },
+  { icon: '▲', label: 'Analytics', href: '/analytics', roles: ['gestor', 'admin'], areas: null },
 ]
 
 export default function Sidebar({ drawerOpen, onClose }: SidebarProps) {
   const { usuario, logout } = useAuth()
 
   const navVisivel = NAV_ITEMS.filter(item =>
-    !item.roles || item.roles.includes(usuario?.role ?? '')
+    (!item.roles || item.roles.includes(usuario?.role ?? '')) &&
+    (!item.areas || item.areas.includes(usuario?.area.slug ?? ''))
   )
 
   return (

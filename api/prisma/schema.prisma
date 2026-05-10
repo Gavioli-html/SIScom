@@ -63,10 +63,11 @@ model Usuario {
   area_id   Int
   criado_em DateTime @default(now())
 
-  area               Area      @relation(fields: [area_id], references: [id])
-  chamados_abertos   Chamado[] @relation("Solicitante")
-  chamados_atribuidos Chamado[] @relation("Tecnico")
-  mensagens          Mensagem[]
+  area             Area              @relation(fields: [area_id], references: [id])
+  chamados_abertos Chamado[]         @relation("Solicitante")
+  chamados_tecnico ChamadoTecnico[]
+  mensagens        Mensagem[]
+  historicos       Historico[]
 
   @@map("usuario")
 }
@@ -93,7 +94,6 @@ model Chamado {
   template_id    Int
   area_id        Int
   solicitante_id Int
-  tecnico_id     Int?
   status                  StatusChamado @default(ABERTO)
   prioridade              Prioridade    @default(normal)
   secretaria_solicitante  String?       @db.VarChar(120)
@@ -102,16 +102,17 @@ model Chamado {
   fechado_em     DateTime?
   parent_id      Int?
 
-  template    TemplateChamado @relation(fields: [template_id], references: [id])
-  area        Area            @relation(fields: [area_id], references: [id])
-  solicitante Usuario         @relation("Solicitante", fields: [solicitante_id], references: [id])
-  tecnico     Usuario?        @relation("Tecnico", fields: [tecnico_id], references: [id])
-  parent      Chamado?        @relation("Subchamados", fields: [parent_id], references: [id])
-  filhos      Chamado[]       @relation("Subchamados")
+  template    TemplateChamado  @relation(fields: [template_id], references: [id])
+  area        Area             @relation(fields: [area_id], references: [id])
+  solicitante Usuario          @relation("Solicitante", fields: [solicitante_id], references: [id])
+  parent      Chamado?         @relation("Subchamados", fields: [parent_id], references: [id])
+  filhos      Chamado[]        @relation("Subchamados")
   campos      CampoChamado[]
   tags        ChamadoTag[]
   mensagens   Mensagem[]
   ativos      ChamadoAtivo[]
+  tecnicos    ChamadoTecnico[]
+  historico   Historico[]
 
   @@map("chamado")
 }
@@ -149,6 +150,18 @@ model ChamadoTag {
   @@map("chamado_tag")
 }
 
+model ChamadoTecnico {
+  chamado_id Int
+  tecnico_id Int
+  atribuido_em DateTime @default(now())
+
+  chamado Chamado @relation(fields: [chamado_id], references: [id], onDelete: Cascade)
+  tecnico Usuario @relation(fields: [tecnico_id], references: [id])
+
+  @@id([chamado_id, tecnico_id])
+  @@map("chamado_tecnico")
+}
+
 model Mensagem {
   id         Int      @id @default(autoincrement())
   chamado_id Int
@@ -163,11 +176,23 @@ model Mensagem {
 }
 
 model Ativo {
-  id         Int    @id @default(autoincrement())
-  patrimonio String @unique @db.VarChar(50)
-  area_id    Int
-  tipo       String @db.VarChar(80)
-  dados_json Json?
+  id           Int       @id @default(autoincrement())
+  patrimonio   String    @unique @db.VarChar(50)
+  area_id      Int
+  tipo         String    @db.VarChar(80)
+  descricao    String?   @db.VarChar(300)
+  localizacao  String?   @db.VarChar(200)
+  ip           String?   @db.VarChar(45)
+  mac          String?   @db.VarChar(17)
+  marca        String?   @db.VarChar(100)
+  modelo       String?   @db.VarChar(100)
+  nr_serie     String?   @db.VarChar(100)
+  comprado_em  DateTime?
+  garantia_ate DateTime?
+  status       String    @default("ativo") @db.VarChar(30)
+  observacoes  String?   @db.Text
+  dados_json   Json?
+  criado_em    DateTime  @default(now())
 
   area     Area           @relation(fields: [area_id], references: [id])
   chamados ChamadoAtivo[]
@@ -184,6 +209,20 @@ model ChamadoAtivo {
 
   @@id([chamado_id, ativo_id])
   @@map("chamado_ativo")
+}
+
+model Historico {
+  id         Int      @id @default(autoincrement())
+  chamado_id Int
+  autor_id   Int?
+  tipo       String   @db.VarChar(50)
+  descricao  String   @db.VarChar(500)
+  criado_em  DateTime @default(now())
+
+  chamado Chamado  @relation(fields: [chamado_id], references: [id], onDelete: Cascade)
+  autor   Usuario? @relation(fields: [autor_id], references: [id])
+
+  @@map("historico")
 }
 
 model Nps {

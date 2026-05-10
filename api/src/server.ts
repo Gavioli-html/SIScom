@@ -9,12 +9,18 @@ import { mensagemRoutes } from "./routes/mensagens.js";
 import { dashboardRoutes } from "./routes/dashboard.js";
 import { usuarioRoutes } from "./routes/usuarios.js";
 import { perfilRoutes } from "./routes/perfil.js";
-import { analyticsRoutes } from "./routes/analytics.js";
+import { analyticsRoutes } from "./routes/analytics.js"
+import { tagRoutes } from "./routes/tags.js";
+import { ativoRoutes } from "./routes/ativos.js";
 
 const app = Fastify({ logger: true });
 
 await app.register(cors, {
-  origin: /^http:\/\/localhost(:\d+)?$/,
+  origin: (origin, cb) => {
+    // Libera qualquer origem HTTP — sistema interno sem exposição pública
+    if (!origin || origin.startsWith('http://')) return cb(null, true)
+    cb(new Error('Not allowed'), false)
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -33,7 +39,9 @@ await app.register(mensagemRoutes);
 await app.register(dashboardRoutes);
 await app.register(usuarioRoutes);
 await app.register(perfilRoutes);
-await app.register(analyticsRoutes);
+await app.register(analyticsRoutes)
+await app.register(tagRoutes);
+await app.register(ativoRoutes);
 
 const port = Number(process.env.PORT ?? 3000);
 

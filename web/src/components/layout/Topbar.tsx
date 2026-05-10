@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom'
+import { useState, type FormEvent } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import logoDark from '../../SIScom Dark.png'
 import './Topbar.css'
@@ -13,6 +14,18 @@ function iniciais(nome: string) {
 
 export default function Topbar({ onMenuClick }: TopbarProps) {
   const { usuario } = useAuth()
+  const navigate = useNavigate()
+  const [q, setQ] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
+
+  const handleSearch = (e: FormEvent) => {
+    e.preventDefault()
+    const termo = q.trim()
+    if (!termo) return
+    navigate(`/chamados?q=${encodeURIComponent(termo)}`)
+    setQ('')
+    setSearchOpen(false)
+  }
 
   return (
     <header className="topbar">
@@ -25,10 +38,35 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
       </button>
 
       <div className="topbar-title">
-        <img src={logoDark} alt="SIScom" className="topbar-logo" />
+        {searchOpen ? (
+          <form className="topbar-search-form" onSubmit={handleSearch}>
+            <input
+              className="topbar-search-input"
+              placeholder="Buscar chamado..."
+              value={q}
+              onChange={e => setQ(e.target.value)}
+              autoFocus
+              onBlur={() => { if (!q) setSearchOpen(false) }}
+            />
+            <button type="submit" className="topbar-search-btn" aria-label="Buscar">⌕</button>
+            <button type="button" className="topbar-search-close" onClick={() => { setQ(''); setSearchOpen(false) }} aria-label="Fechar">✕</button>
+          </form>
+        ) : (
+          <img src={logoDark} alt="SIScom" className="topbar-logo" />
+        )}
       </div>
 
       <div className="topbar-actions">
+        {!searchOpen && (
+          <button
+            className="topbar-search-trigger"
+            onClick={() => setSearchOpen(true)}
+            aria-label="Buscar chamado"
+            title="Buscar chamado"
+          >
+            ⌕
+          </button>
+        )}
         <Link to="/perfil" className="topbar-user">
           <div className="topbar-avatar" aria-hidden="true">
             {usuario ? iniciais(usuario.nome) : '—'}

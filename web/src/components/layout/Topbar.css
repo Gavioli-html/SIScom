@@ -2,7 +2,7 @@
   height: var(--topbar-h);
   background: #fff;
   border-bottom: 1px solid var(--line);
-  box-shadow: 0 1px 3px rgba(13, 20, 51, .05);
+  box-shadow: 0 1px 6px rgba(13,20,51,.07), 0 1px 0 rgba(13,20,51,.03);
   display: flex;
   align-items: center;
   padding: 0 var(--space-6);
@@ -21,7 +21,10 @@
   cursor: pointer;
   padding: var(--space-1);
   line-height: 1;
+  transition: color var(--ease);
 }
+
+.topbar-menu-btn:hover { color: var(--accent); }
 
 .topbar-logo {
   height: 34px;
@@ -41,27 +44,29 @@
 .topbar-actions {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-3);
 }
 
 .topbar-user {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
   text-decoration: none;
-  padding: var(--space-1) var(--space-2);
+  padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-sm);
-  transition: background 0.15s;
+  transition: background var(--ease), border-color var(--ease);
+  border: 1px solid transparent;
 }
 
 .topbar-user:hover {
   background: var(--paper-dark);
+  border-color: var(--line);
 }
 
 .topbar-avatar {
-  width: 32px;
-  height: 32px;
-  background: var(--ink-mid);
+  width: 34px;
+  height: 34px;
+  background: linear-gradient(135deg, var(--ink-mid) 0%, var(--ink-soft) 100%);
   color: var(--paper);
   font-family: var(--mono);
   font-size: var(--text-sm);
@@ -71,13 +76,82 @@
   justify-content: center;
   border-radius: var(--radius-sm);
   flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
+  letter-spacing: 0;
 }
 
 .topbar-username {
   font-size: var(--text-sm);
   font-family: var(--mono);
   color: var(--ink);
+  font-weight: 500;
 }
+
+.topbar-search-trigger {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  font-family: var(--mono);
+  cursor: pointer;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  line-height: 1;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  transition: color var(--ease), border-color var(--ease), background var(--ease), box-shadow var(--ease);
+}
+
+.topbar-search-trigger:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+  box-shadow: 0 0 0 3px rgba(0,102,204,.08);
+}
+
+.topbar-search-form {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  max-width: 520px;
+}
+
+.topbar-search-input {
+  flex: 1;
+  height: 36px;
+  padding: 0 var(--space-3);
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  border: 1px solid var(--ink-mid);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  color: var(--ink);
+  outline: none;
+  transition: border-color var(--ease), box-shadow var(--ease);
+}
+
+.topbar-search-input:focus {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-focus);
+}
+
+.topbar-search-btn,
+.topbar-search-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: var(--text-base);
+  color: var(--ink-soft);
+  padding: var(--space-1);
+  line-height: 1;
+  transition: color var(--ease);
+}
+
+.topbar-search-btn:hover { color: var(--accent); }
+.topbar-search-close:hover { color: var(--sem-danger); }
 
 @media (max-width: 768px) {
   .topbar-menu-btn {

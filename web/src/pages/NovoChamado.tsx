@@ -1,14 +1,26 @@
-import { useEffect, useState, FormEvent } from 'react'
+import { useEffect, useState, useRef, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AppShell from '../components/layout/AppShell'
 import { api } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 import './NovoChamado.css'
 
+interface AtivoPreview {
+  id: number
+  patrimonio: string
+  tipo: string
+  descricao: string | null
+  marca: string | null
+  modelo: string | null
+  localizacao: string | null
+  ip: string | null
+  status: string
+}
+
 interface Campo {
   chave: string
   label: string
-  tipo: 'text' | 'textarea' | 'select'
+  tipo: 'text' | 'textarea' | 'select' | 'multiselect'
   obrigatorio?: boolean
   opcoes?: string[]
 }
@@ -54,6 +66,9 @@ export default function NovoChamado() {
   const [campos, setCampos] = useState<Record<string, string>>({})
   const [erro, setErro] = useState('')
   const [enviando, setEnviando] = useState(false)
+  const [ativoPreview, setAtivoPreview] = useState<AtivoPreview | null>(null)
+  const [ativoBuscando, setAtivoBuscando] = useState(false)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (!usuario) return
@@ -63,8 +78,31 @@ export default function NovoChamado() {
       })
   }, [usuario])
 
-  const setCampo = (chave: string, valor: string) =>
+  const setCampo = (chave: string, valor: string) => {
     setCampos(prev => ({ ...prev, [chave]: valor }))
+    if (chave === 'patrimonio' && usuario?.area.slug === 'ti') {
+      setAtivoPreview(null)
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+      if (!valor.trim()) { setAtivoBuscando(false); return }
+      setAtivoBuscando(true)
+      debounceRef.current = setTimeout(() => {
+        api.get<{ ativo: AtivoPreview | null }>(`/ativos?patrimonio=${encodeURIComponent(valor.trim())}`)
+          .then(d => setAtivoPreview(d.ativo))
+          .catch(() => setAtivoPreview(null))
+          .finally(() => setAtivoBuscando(false))
+      }, 500)
+    }
+  }
+
+  const toggleMulti = (chave: string, opcao: string) => {
+    setCampos(prev => {
+      const atual = prev[chave] ? prev[chave].split(',').filter(Boolean) : []
+      const novo = atual.includes(opcao)
+        ? atual.filter(o => o !== opcao)
+        : [...atual, opcao]
+      return { ...prev, [chave]: novo.join(',') }
+    })
+  }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -83,6 +121,9 @@ export default function NovoChamado() {
         '/chamados',
         { titulo, descricao, template_id: template.id, prioridade, secretaria_solicitante: secretaria || undefined, campos: camposArr, formato }
       )
+      if (ativoPreview) {
+        await api.post(`/chamados/${data.chamado.id}/ativos`, { ativo_id: ativoPreview.id }).catch(() => null)
+      }
       navigate(`/chamados/${data.chamado.id}`)
     } catch (err: unknown) {
       setErro(err instanceof Error ? err.message : 'Erro ao abrir chamado')
@@ -177,12 +218,31 @@ export default function NovoChamado() {
             </div>
 
             {template?.campos_json.map((campo) => (
-              <div key={campo.chave} className="form-group">
+              <div key={campo.chave} className={`form-group${campo.tipo === 'multiselect' ? ' novo-full' : ''}`}>
                 <label className="form-label" htmlFor={campo.chave}>
                   {campo.label}
                   {campo.obrigatorio && <span className="required"> *</span>}
                 </label>
-                {campo.tipo === 'select' ? (
+                {campo.tipo === 'multiselect' ? (
+                  <div className="form-chips" role="group" aria-label={campo.label}>
+                    {campo.opcoes?.map(opcao => {
+                      const selecionados = campos[campo.chave]?.split(',').filter(Boolean) ?? []
+                      const ativo = selecionados.includes(opcao)
+                      return (
+                        <button
+                          key={opcao}
+                          type="button"
+                          className={`form-chip${ativo ? ' form-chip--ativo' : ''}`}
+                          onClick={() => toggleMulti(campo.chave, opcao)}
+                          aria-pressed={ativo}
+                        >
+                          {ativo && <span className="form-chip-check" aria-hidden="true">✓</span>}
+                          {opcao}
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : campo.tipo === 'select' ? (
                   <select
                     id={campo.chave}
                     className="form-select"
@@ -201,13 +261,35 @@ export default function NovoChamado() {
                     onChange={e => setCampo(campo.chave, e.target.value)}
                   />
                 ) : (
-                  <input
-                    id={campo.chave}
-                    type="text"
-                    className="form-input"
-                    value={campos[campo.chave] ?? ''}
-                    onChange={e => setCampo(campo.chave, e.target.value)}
-                  />
+                  <>
+                    <input
+                      id={campo.chave}
+                      type="text"
+                      className="form-input"
+                      value={campos[campo.chave] ?? ''}
+                      onChange={e => setCampo(campo.chave, e.target.value)}
+                    />
+                    {campo.chave === 'patrimonio' && usuario?.area.slug === 'ti' && (
+                      ativoBuscando ? (
+                        <p className="novo-ativo-hint">Buscando ativo...</p>
+                      ) : ativoPreview ? (
+                        <div className="novo-ativo-card">
+                          <div className="novo-ativo-card-header">
+                            <span className="novo-ativo-badge">✓ Ativo encontrado</span>
+                          </div>
+                          <dl className="novo-ativo-specs">
+                            <dt>Tipo</dt><dd>{ativoPreview.tipo}</dd>
+                            {ativoPreview.descricao && (<><dt>Descrição</dt><dd>{ativoPreview.descricao}</dd></>)}
+                            {ativoPreview.marca && (<><dt>Marca/Modelo</dt><dd>{ativoPreview.marca}{ativoPreview.modelo ? ` ${ativoPreview.modelo}` : ''}</dd></>)}
+                            {ativoPreview.localizacao && (<><dt>Localização</dt><dd>{ativoPreview.localizacao}</dd></>)}
+                            {ativoPreview.ip && (<><dt>IP</dt><dd>{ativoPreview.ip}</dd></>)}
+                          </dl>
+                        </div>
+                      ) : campos['patrimonio']?.trim() ? (
+                        <p className="novo-ativo-hint novo-ativo-hint--miss">Patrimônio não encontrado no inventário.</p>
+                      ) : null
+                    )}
+                  </>
                 )}
               </div>
             ))}

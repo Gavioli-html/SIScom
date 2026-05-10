@@ -16,7 +16,10 @@
   flex: 1;
   overflow-y: auto;
   padding: var(--space-8);
-  background: var(--paper);
+  background-color: var(--paper);
+  background-image:
+    radial-gradient(rgba(13,20,51,.035) 1px, transparent 1px);
+  background-size: 20px 20px;
 }
 
 .appshell-overlay {
@@ -36,7 +39,8 @@
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(13, 20, 51, 0.5);
+    background: rgba(13, 20, 51, 0.55);
+    backdrop-filter: blur(2px);
     z-index: 40;
   }
 

@@ -1,0 +1,379 @@
+.cal-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 1100px;
+}
+
+/* ── Header ─────────────────────────────────────────────── */
+
+.cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.cal-nav-btn {
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s;
+}
+
+.cal-nav-btn:hover { background: var(--paper-dark); }
+
+.cal-mes-label {
+  font-family: var(--mono);
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--ink);
+  min-width: 200px;
+  text-align: center;
+}
+
+.cal-hoje-btn {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: var(--space-1) var(--space-3);
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+
+.cal-hoje-btn:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ── Resumo do mês ───────────────────────────────────────── */
+
+.cal-resumo {
+  display: flex;
+  gap: var(--space-6);
+}
+
+.cal-resumo-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cal-resumo-num {
+  font-family: var(--mono);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1;
+}
+
+.cal-resumo-label {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+/* ── Layout principal ────────────────────────────────────── */
+
+.cal-layout {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.cal-grid-wrap {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+}
+
+.cal-loading {
+  position: absolute;
+  inset: 0;
+  background: rgba(247,246,242,.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  z-index: 2;
+}
+
+/* ── Grade ───────────────────────────────────────────────── */
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.cal-dia-semana {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--ink-soft);
+  text-align: center;
+  padding: var(--space-2) 0;
+  background: var(--paper-dark);
+  border-bottom: 1px solid var(--line);
+}
+
+.cal-celula {
+  min-height: 88px;
+  padding: var(--space-2);
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  transition: background .1s;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cal-celula:nth-child(7n) { border-right: none; }
+
+.cal-celula:hover:not(.cal-celula--vazia) {
+  background: var(--paper-dark);
+}
+
+.cal-celula--vazia {
+  cursor: default;
+  background: var(--paper-dark);
+  opacity: .4;
+}
+
+.cal-celula--hoje .cal-num-dia {
+  background: var(--accent);
+  color: #fff;
+}
+
+.cal-celula--selecionada {
+  background: rgba(0,102,204,.06) !important;
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.cal-num-dia {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--ink);
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+/* ── Eventos ─────────────────────────────────────────────── */
+
+.cal-eventos {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.cal-evento {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.cal-evento--encerrado {
+  opacity: .45;
+  text-decoration: line-through;
+}
+
+.cal-mais {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-soft);
+  padding-left: 5px;
+}
+
+.cal-dot {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-full);
+  background: var(--sem-danger);
+}
+
+/* ── Cores de prioridade ─────────────────────────────────── */
+
+.cal-prio-critica { background: var(--sem-danger-bg); color: var(--sem-danger); border-left: 2px solid var(--sem-danger); }
+.cal-prio-alta    { background: #fdf0e8; color: #8b4513; border-left: 2px solid #c47a3a; }
+.cal-prio-media   { background: var(--sem-warning-bg); color: var(--sem-warning); border-left: 2px solid var(--sem-warning-bd); }
+.cal-prio-baixa   { background: var(--sem-success-bg); color: var(--sem-success); border-left: 2px solid var(--sem-success-bd); }
+.cal-prio-normal  { background: var(--paper-dark); color: var(--ink-soft); border-left: 2px solid var(--line); }
+
+.cal-evento-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.cal-evento-dot.cal-prio-critica { background: var(--sem-danger); }
+.cal-evento-dot.cal-prio-alta    { background: #c47a3a; }
+.cal-evento-dot.cal-prio-media   { background: var(--sem-warning); }
+.cal-evento-dot.cal-prio-baixa   { background: var(--sem-success); }
+.cal-evento-dot.cal-prio-normal  { background: var(--line); }
+
+/* ── Painel lateral ──────────────────────────────────────── */
+
+.cal-painel {
+  position: sticky;
+  top: var(--space-4);
+}
+
+.cal-painel-vazio {
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  text-align: center;
+  padding: var(--space-6) var(--space-4);
+}
+
+.cal-painel-lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.cal-painel-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  transition: background .12s, border-color .12s;
+  text-decoration: none;
+}
+
+.cal-painel-item:hover {
+  background: var(--paper-dark);
+  border-color: var(--ink-soft);
+}
+
+.cal-painel-item-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.cal-painel-proto {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.cal-painel-encerrado {
+  font-size: var(--text-xs);
+  color: var(--sem-success);
+  margin-left: auto;
+}
+
+.cal-painel-titulo {
+  font-size: var(--text-sm);
+  color: var(--ink);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cal-painel-meta {
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
+}
+
+/* ── Legenda ─────────────────────────────────────────────── */
+
+.cal-legenda {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.cal-legenda-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
+}
+
+/* ── Responsividade ──────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .cal-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .cal-painel {
+    position: static;
+    order: -1;
+  }
+
+  .cal-celula {
+    min-height: 60px;
+  }
+}
+
+@media (max-width: 600px) {
+  .cal-celula {
+    min-height: 44px;
+    padding: var(--space-1);
+  }
+
+  .cal-evento {
+    display: none;
+  }
+
+  .cal-celula--com-eventos .cal-dot {
+    display: block;
+  }
+
+  .cal-mes-label {
+    min-width: 140px;
+    font-size: var(--text-sm);
+  }
+}

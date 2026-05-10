@@ -14,16 +14,12 @@ export async function analyticsRoutes(app: FastifyInstance) {
 
   // GET /analytics/resumo
   app.get('/analytics/resumo', { preHandler: [authenticate, requireRole('gestor', 'admin')] }, async (req) => {
-    const { periodo = '30d', area_id: qArea } = req.query as Record<string, string>
-    const { area_id, role } = req.user
+    const { periodo = '30d' } = req.query as Record<string, string>
+    const { area_id } = req.user
     const inicio = periodoInicio(periodo)
     const agora = new Date()
 
-    const areaFilter = role === 'admin' && qArea
-      ? { area_id: Number(qArea) }
-      : role !== 'admin'
-        ? { area_id }
-        : {}
+    const areaFilter = { area_id }
 
     const [total, resolvidos, vencidos, emAberto] = await Promise.all([
       prisma.chamado.count({ where: { ...areaFilter, aberto_em: { gte: inicio } } }),
@@ -37,12 +33,14 @@ export async function analyticsRoutes(app: FastifyInstance) {
     return { resumo: { total, resolvidos, vencidos, em_aberto: emAberto, taxa_sla: taxaSla } }
   })
 
-  // GET /analytics/top-areas
-  app.get('/analytics/top-areas', { preHandler: [authenticate, requireRole('gestor', 'admin')] }, async (req) => {
+  // GET /analytics/top-areas — dados da própria área do admin
+  app.get('/analytics/top-areas', { preHandler: [authenticate, requireRole('admin')] }, async (req) => {
     const { periodo = '30d' } = req.query as Record<string, string>
+    const { area_id } = req.user
     const inicio = periodoInicio(periodo)
 
-    const areas = await prisma.area.findMany({
+    const area = await prisma.area.findUnique({
+      where: { id: area_id },
       select: {
         nome: true,
         chamados: {
@@ -52,25 +50,24 @@ export async function analyticsRoutes(app: FastifyInstance) {
       },
     })
 
-    const data = areas
-      .map(a => ({
-        nome: a.nome,
-        total: a.chamados.length,
-        resolvidos: a.chamados.filter(c => ['RESOLVIDO', 'ENCERRADO'].includes(c.status)).length,
-        abertos: a.chamados.filter(c => !['RESOLVIDO', 'ENCERRADO', 'CANCELADO'].includes(c.status)).length,
-      }))
-      .filter(a => a.total > 0)
-      .sort((a, b) => b.total - a.total)
+    if (!area) return { areas: [] }
+
+    const data = [{
+      nome: area.nome,
+      total: area.chamados.length,
+      resolvidos: area.chamados.filter(c => ['RESOLVIDO', 'ENCERRADO'].includes(c.status)).length,
+      abertos: area.chamados.filter(c => !['RESOLVIDO', 'ENCERRADO', 'CANCELADO'].includes(c.status)).length,
+    }]
 
     return { areas: data }
   })
 
   // GET /analytics/top-solicitantes
   app.get('/analytics/top-solicitantes', { preHandler: [authenticate, requireRole('gestor', 'admin')] }, async (req) => {
-    const { periodo = '30d', area_id: qArea } = req.query as Record<string, string>
-    const { area_id, role } = req.user
+    const { periodo = '30d' } = req.query as Record<string, string>
+    const { area_id } = req.user
     const inicio = periodoInicio(periodo)
-    const areaFilter = role === 'admin' && qArea ? { area_id: Number(qArea) } : role !== 'admin' ? { area_id } : {}
+    const areaFilter = { area_id }
 
     const chamados = await prisma.chamado.groupBy({
       by: ['solicitante_id'],
@@ -97,29 +94,29 @@ export async function analyticsRoutes(app: FastifyInstance) {
 
   // GET /analytics/top-tecnicos
   app.get('/analytics/top-tecnicos', { preHandler: [authenticate, requireRole('gestor', 'admin')] }, async (req) => {
-    const { periodo = '30d', area_id: qArea } = req.query as Record<string, string>
-    const { area_id, role } = req.user
+    const { periodo = '30d' } = req.query as Record<string, string>
+    const { area_id } = req.user
     const inicio = periodoInicio(periodo)
-    const areaFilter = role === 'admin' && qArea ? { area_id: Number(qArea) } : role !== 'admin' ? { area_id } : {}
+    const areaFilter = { area_id }
 
-    const chamados = await prisma.chamado.groupBy({
+    const rows = await prisma.chamadoTecnico.groupBy({
       by: ['tecnico_id'],
-      where: { ...areaFilter, aberto_em: { gte: inicio }, tecnico_id: { not: null } },
-      _count: { id: true },
-      orderBy: { _count: { id: 'desc' } },
+      where: { chamado: { ...areaFilter, aberto_em: { gte: inicio } } },
+      _count: { tecnico_id: true },
+      orderBy: { _count: { tecnico_id: 'desc' } },
       take: 10,
     })
 
-    const ids = chamados.map(c => c.tecnico_id).filter(Boolean) as number[]
+    const ids = rows.map(r => r.tecnico_id)
     const usuarios = await prisma.usuario.findMany({
       where: { id: { in: ids } },
       select: { id: true, nome: true },
     })
     const nomeMap = Object.fromEntries(usuarios.map(u => [u.id, u.nome]))
 
-    const data = chamados.map(c => ({
-      nome: nomeMap[c.tecnico_id!] ?? '—',
-      total: c._count.id,
+    const data = rows.map(r => ({
+      nome: nomeMap[r.tecnico_id] ?? '—',
+      total: r._count.tecnico_id,
     }))
 
     return { tecnicos: data }
@@ -127,10 +124,10 @@ export async function analyticsRoutes(app: FastifyInstance) {
 
   // GET /analytics/por-status
   app.get('/analytics/por-status', { preHandler: [authenticate, requireRole('gestor', 'admin')] }, async (req) => {
-    const { periodo = '30d', area_id: qArea } = req.query as Record<string, string>
-    const { area_id, role } = req.user
+    const { periodo = '30d' } = req.query as Record<string, string>
+    const { area_id } = req.user
     const inicio = periodoInicio(periodo)
-    const areaFilter = role === 'admin' && qArea ? { area_id: Number(qArea) } : role !== 'admin' ? { area_id } : {}
+    const areaFilter = { area_id }
 
     const grupos = await prisma.chamado.groupBy({
       by: ['status'],
@@ -155,10 +152,10 @@ export async function analyticsRoutes(app: FastifyInstance) {
 
   // GET /analytics/por-prioridade
   app.get('/analytics/por-prioridade', { preHandler: [authenticate, requireRole('gestor', 'admin')] }, async (req) => {
-    const { periodo = '30d', area_id: qArea } = req.query as Record<string, string>
-    const { area_id, role } = req.user
+    const { periodo = '30d' } = req.query as Record<string, string>
+    const { area_id } = req.user
     const inicio = periodoInicio(periodo)
-    const areaFilter = role === 'admin' && qArea ? { area_id: Number(qArea) } : role !== 'admin' ? { area_id } : {}
+    const areaFilter = { area_id }
 
     const grupos = await prisma.chamado.groupBy({
       by: ['prioridade'],
@@ -173,11 +170,146 @@ export async function analyticsRoutes(app: FastifyInstance) {
     return { prioridades: data }
   })
 
+  // GET /analytics/top-secretarias
+  app.get('/analytics/top-secretarias', { preHandler: [authenticate, requireRole('gestor', 'admin')] }, async (req) => {
+    const { periodo = '30d' } = req.query as Record<string, string>
+    const { area_id } = req.user
+    const inicio = periodoInicio(periodo)
+    const areaFilter = { area_id }
+
+    const grupos = await prisma.chamado.groupBy({
+      by: ['secretaria_solicitante'],
+      where: {
+        ...areaFilter,
+        aberto_em: { gte: inicio },
+        secretaria_solicitante: { not: null },
+      },
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
+      take: 10,
+    })
+
+    const data = grupos
+      .filter(g => g.secretaria_solicitante)
+      .map(g => ({
+        nome: g.secretaria_solicitante!
+          .replace('Secretaria Municipal de ', '')
+          .replace('Secretaria Municipal do ', ''),
+        nome_completo: g.secretaria_solicitante!,
+        total: g._count.id,
+      }))
+
+    return { secretarias: data }
+  })
+
+  // ── Módulo TI ────────────────────────────────────────────────────────────
+
+  // GET /analytics/ti/por-categoria — agrupa por campo "categoria" do template TI
+  app.get('/analytics/ti/por-categoria', { preHandler: [authenticate, requireRole('gestor', 'admin')] }, async (req) => {
+    const { periodo = '30d' } = req.query as Record<string, string>
+    const { area_id } = req.user
+    const inicio = periodoInicio(periodo)
+
+    const grupos = await prisma.campoChamado.groupBy({
+      by: ['valor'],
+      where: {
+        chave: 'categoria',
+        chamado: { area_id, aberto_em: { gte: inicio } },
+      },
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
+    })
+
+    return { categorias: grupos.map(g => ({ categoria: g.valor, total: g._count.id })) }
+  })
+
+  // GET /analytics/ti/top-ativos — equipamentos que mais geram chamados
+  app.get('/analytics/ti/top-ativos', { preHandler: [authenticate, requireRole('gestor', 'admin')] }, async (req) => {
+    const { periodo = '30d' } = req.query as Record<string, string>
+    const { area_id } = req.user
+    const inicio = periodoInicio(periodo)
+
+    const rows = await prisma.chamadoAtivo.groupBy({
+      by: ['ativo_id'],
+      where: { chamado: { area_id, aberto_em: { gte: inicio } } },
+      _count: { ativo_id: true },
+      orderBy: { _count: { ativo_id: 'desc' } },
+      take: 10,
+    })
+
+    const ids = rows.map(r => r.ativo_id)
+    const ativos = await prisma.ativo.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, patrimonio: true, descricao: true, tipo: true },
+    })
+    const ativoMap = Object.fromEntries(ativos.map(a => [a.id, a]))
+
+    return {
+      ativos: rows.map(r => ({
+        patrimonio: ativoMap[r.ativo_id]?.patrimonio ?? `#${r.ativo_id}`,
+        descricao: ativoMap[r.ativo_id]?.descricao ?? ativoMap[r.ativo_id]?.tipo ?? '—',
+        total: r._count.ativo_id,
+      })),
+    }
+  })
+
+  // ── Módulo SECOM ─────────────────────────────────────────────────────────
+
+  // GET /analytics/secom/por-formato — distribuição por formato de entrega (multiselect)
+  app.get('/analytics/secom/por-formato', { preHandler: [authenticate, requireRole('gestor', 'admin')] }, async (req) => {
+    const { periodo = '30d' } = req.query as Record<string, string>
+    const { area_id } = req.user
+    const inicio = periodoInicio(periodo)
+
+    const campos = await prisma.campoChamado.findMany({
+      where: { chave: 'formato', chamado: { area_id, aberto_em: { gte: inicio } } },
+      select: { valor: true },
+    })
+
+    const contagem: Record<string, number> = {}
+    for (const { valor } of campos) {
+      for (const item of valor.split(',').map(s => s.trim()).filter(Boolean)) {
+        contagem[item] = (contagem[item] ?? 0) + 1
+      }
+    }
+
+    const formatos = Object.entries(contagem)
+      .map(([formato, total]) => ({ formato, total }))
+      .sort((a, b) => b.total - a.total)
+
+    return { formatos }
+  })
+
+  // GET /analytics/secom/por-canal — distribuição por canal de publicação (multiselect)
+  app.get('/analytics/secom/por-canal', { preHandler: [authenticate, requireRole('gestor', 'admin')] }, async (req) => {
+    const { periodo = '30d' } = req.query as Record<string, string>
+    const { area_id } = req.user
+    const inicio = periodoInicio(periodo)
+
+    const campos = await prisma.campoChamado.findMany({
+      where: { chave: 'canal', chamado: { area_id, aberto_em: { gte: inicio } } },
+      select: { valor: true },
+    })
+
+    const contagem: Record<string, number> = {}
+    for (const { valor } of campos) {
+      for (const item of valor.split(',').map(s => s.trim()).filter(Boolean)) {
+        contagem[item] = (contagem[item] ?? 0) + 1
+      }
+    }
+
+    const canais = Object.entries(contagem)
+      .map(([canal, total]) => ({ canal, total }))
+      .sort((a, b) => b.total - a.total)
+
+    return { canais }
+  })
+
   // GET /analytics/alertas
   app.get('/analytics/alertas', { preHandler: [authenticate, requireRole('gestor', 'admin')] }, async (req) => {
-    const { area_id, role } = req.user
+    const { area_id } = req.user
     const agora = new Date()
-    const areaFilter = role !== 'admin' ? { area_id } : {}
+    const areaFilter = { area_id }
 
     const [vencidos, criticos, semAtividade] = await Promise.all([
       prisma.chamado.count({

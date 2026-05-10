@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx prisma *)",
+      "PowerShell(cd \"f:\\\\SIScom\\\\api\"; npx tsc --noEmit 2>&1 | Where-Object { $_ -notmatch \"seed\\\\.ts\" })"
+    ]
+  }
+}

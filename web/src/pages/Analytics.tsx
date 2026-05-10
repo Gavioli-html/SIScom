@@ -1,47 +1,28 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend, RadialBarChart, RadialBar,
+  PieChart, Pie, Cell, RadialBarChart, RadialBar,
 } from 'recharts'
 import AppShell from '../components/layout/AppShell'
 import { api } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
+import { getModule } from './analytics/moduleRegistry'
+import { C, SERIES_CORES } from './analytics/types'
 import './Analytics.css'
 
 /* ── tipos ──────────────────────────────────────────── */
-interface Resumo { total: number; resolvidos: number; vencidos: number; em_aberto: number; taxa_sla: number }
-interface RankItem { nome: string; total: number; resolvidos?: number; abertos?: number }
+interface Resumo    { total: number; resolvidos: number; vencidos: number; em_aberto: number; taxa_sla: number }
+interface RankItem  { nome: string; total: number; nome_completo?: string }
 interface StatusItem { status: string; label: string; total: number }
-interface PrioItem { prioridade: string; total: number }
-interface Alerta { tipo: string; titulo: string; mensagem: string }
-
-/* ── cores derivadas dos tokens ──────────────────────── */
-const C = {
-  accent:   '#0066cc',
-  success:  '#4a6741',
-  warning:  '#7a5c1e',
-  danger:   '#6b2233',
-  soft:     '#5262c4',
-  mid:      '#2b3278',
-  line:     '#d4d2cc',
-  paper:    '#f7f6f2',
-  ink:      '#0d1433',
-}
+interface Alerta    { tipo: string; titulo: string; mensagem: string }
 
 const STATUS_COR: Record<string, string> = {
   ABERTO: C.line, EM_ANALISE: C.warning, ATRIBUIDO: C.soft,
   EM_ANDAMENTO: C.accent, RESOLVIDO: C.success, ENCERRADO: C.success, CANCELADO: C.danger,
 }
 
-const PRIO_COR: Record<string, string> = {
-  critica: C.danger, alta: '#a33', media: C.warning, baixa: C.success, normal: C.line,
-}
-
-const SERIES_CORES = [C.accent, C.success, C.warning, C.danger, C.soft, C.mid]
-
 const PERIODOS = [{ v: '7d', l: '7 dias' }, { v: '30d', l: '30 dias' }, { v: '90d', l: '90 dias' }]
 
-/* ── tooltip customizado ─────────────────────────────── */
 const TooltipCustom = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null
   return (
@@ -56,7 +37,35 @@ const TooltipCustom = ({ active, payload, label }: any) => {
   )
 }
 
-/* ── helpers ─────────────────────────────────────────── */
+/* ── contador animado ────────────────────────────────── */
+function useCountUp(target: number, duration = 700) {
+  const [value, setValue] = useState(0)
+  const raf = useRef<number>(0)
+  useEffect(() => {
+    if (target === 0) { setValue(0); return }
+    const start = performance.now()
+    const tick = (now: number) => {
+      const t = Math.min((now - start) / duration, 1)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setValue(Math.round(target * eased))
+      if (t < 1) raf.current = requestAnimationFrame(tick)
+    }
+    raf.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf.current)
+  }, [target, duration])
+  return value
+}
+
+function MetricCard({ label, value, color, delay = 0 }: { label: string; value: number; color?: string; delay?: number }) {
+  const animated = useCountUp(value)
+  return (
+    <div className="an-card" style={{ animationDelay: `${delay}ms` }}>
+      <span className="an-card-label">{label}</span>
+      <span className="an-card-value" style={color ? { color } : {}}>{animated}</span>
+    </div>
+  )
+}
+
 function GaugeCard({ taxa }: { taxa: number }) {
   const data = [{ name: 'SLA', value: taxa, fill: taxa >= 80 ? C.success : taxa >= 50 ? C.warning : C.danger }]
   return (
@@ -74,38 +83,34 @@ function GaugeCard({ taxa }: { taxa: number }) {
   )
 }
 
-/* ── componente principal ────────────────────────────── */
+/* ── página ──────────────────────────────────────────── */
 export default function Analytics() {
   const { usuario } = useAuth()
   const [periodo, setPeriodo] = useState('30d')
 
-  const [resumo, setResumo]     = useState<Resumo | null>(null)
-  const [areas, setAreas]       = useState<RankItem[]>([])
-  const [solics, setSolics]     = useState<RankItem[]>([])
+  const [resumo, setResumo]   = useState<Resumo | null>(null)
+  const [solics, setSolics]   = useState<RankItem[]>([])
   const [tecnicos, setTecnicos] = useState<RankItem[]>([])
-  const [status, setStatus]     = useState<StatusItem[]>([])
-  const [prios, setPrios]       = useState<PrioItem[]>([])
-  const [alertas, setAlertas]   = useState<Alerta[]>([])
-  const [loading, setLoading]   = useState(true)
+  const [status, setStatus]   = useState<StatusItem[]>([])
+  const [alertas, setAlertas] = useState<Alerta[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const AreaModule = getModule(usuario?.area.slug ?? '')
 
   const carregar = useCallback(() => {
     setLoading(true)
     const q = `?periodo=${periodo}`
     Promise.all([
       api.get<{ resumo: Resumo }>(`/analytics/resumo${q}`),
-      api.get<{ areas: RankItem[] }>(`/analytics/top-areas${q}`),
       api.get<{ solicitantes: RankItem[] }>(`/analytics/top-solicitantes${q}`),
       api.get<{ tecnicos: RankItem[] }>(`/analytics/top-tecnicos${q}`),
       api.get<{ status: StatusItem[] }>(`/analytics/por-status${q}`),
-      api.get<{ prioridades: PrioItem[] }>(`/analytics/por-prioridade${q}`),
       api.get<{ alertas: Alerta[] }>('/analytics/alertas'),
-    ]).then(([r, a, s, t, st, p, al]) => {
+    ]).then(([r, s, t, st, al]) => {
       setResumo(r.resumo)
-      setAreas(a.areas)
       setSolics(s.solicitantes)
       setTecnicos(t.tecnicos)
       setStatus(st.status)
-      setPrios(p.prioridades)
       setAlertas(al.alertas)
     }).finally(() => setLoading(false))
   }, [periodo])
@@ -141,7 +146,10 @@ export default function Analytics() {
         </div>
 
         {loading ? (
-          <p className="an-loading">Carregando dados...</p>
+          <div className="an-loading">
+            {[...Array(5)].map((_, i) => <div key={i} className="an-skeleton" />)}
+            {[...Array(2)].map((_, i) => <div key={i} className="an-skeleton an-skeleton--chart" />)}
+          </div>
         ) : (
           <>
             {/* alertas */}
@@ -155,60 +163,31 @@ export default function Analytics() {
               </div>
             )}
 
-            {/* bloco 1 — cards de métricas */}
-            <div className="an-cards">
-              <div className="an-card">
-                <span className="an-card-label">Total de chamados</span>
-                <span className="an-card-value">{resumo?.total ?? 0}</span>
-              </div>
-              <div className="an-card">
-                <span className="an-card-label">Em aberto</span>
-                <span className="an-card-value" style={{ color: C.accent }}>{resumo?.em_aberto ?? 0}</span>
-              </div>
-              <div className="an-card">
-                <span className="an-card-label">Resolvidos</span>
-                <span className="an-card-value" style={{ color: C.success }}>{resumo?.resolvidos ?? 0}</span>
-              </div>
-              <div className="an-card">
-                <span className="an-card-label">SLA vencidos</span>
-                <span className="an-card-value" style={{ color: resumo?.vencidos ? C.danger : C.success }}>
-                  {resumo?.vencidos ?? 0}
-                </span>
-              </div>
-              <div className="an-card an-card--gauge">
+            {/* métricas compartilhadas */}
+            <div className="an-cards" key={periodo}>
+              <MetricCard label="Total de chamados" value={resumo?.total ?? 0}      delay={0} />
+              <MetricCard label="Em aberto"          value={resumo?.em_aberto ?? 0}  color={C.accent}  delay={60} />
+              <MetricCard label="Resolvidos"         value={resumo?.resolvidos ?? 0} color={C.success} delay={120} />
+              <MetricCard label="SLA vencidos"       value={resumo?.vencidos ?? 0}   color={resumo?.vencidos ? C.danger : C.success} delay={180} />
+              <div className="an-card an-card--gauge" style={{ animationDelay: '240ms' }}>
                 <span className="an-card-label">Taxa de SLA</span>
                 <GaugeCard taxa={resumo?.taxa_sla ?? 0} />
               </div>
             </div>
 
-            {/* bloco 2 — rankings */}
-            <div className="an-section-title">Rankings</div>
-            <div className="an-charts-grid">
+            {/* seção geral compartilhada */}
+            <div className="an-section-title">Visão Geral</div>
+            <div className="an-charts-grid" key={`${periodo}-shared`}>
 
-              {/* top áreas */}
-              <div className="card an-chart-card">
-                <div className="card-header"><span className="card-title">Chamados por Área</span></div>
-                {areas.length === 0 ? <p className="an-empty">Sem dados</p> : (
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={areas} layout="vertical" margin={{ left: 8, right: 24 }}>
-                      <XAxis type="number" hide />
-                      <YAxis type="category" dataKey="nome" width={80} tick={{ fontSize: 12, fontFamily: 'var(--mono)', fill: C.ink }} />
-                      <Tooltip content={<TooltipCustom />} />
-                      <Bar dataKey="total" name="Total" radius={[0, 3, 3, 0]}>
-                        {areas.map((_, i) => <Cell key={i} fill={SERIES_CORES[i % SERIES_CORES.length]} />)}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-
-              {/* distribuição por status */}
               <div className="card an-chart-card">
                 <div className="card-header"><span className="card-title">Por Status</span></div>
                 {status.length === 0 ? <p className="an-empty">Sem dados</p> : (
                   <ResponsiveContainer width="100%" height={220}>
                     <PieChart>
-                      <Pie data={status} dataKey="total" nameKey="label" cx="50%" cy="50%" outerRadius={80} label={({ label, percent }) => `${label} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                      <Pie data={status} dataKey="total" nameKey="label" cx="50%" cy="50%" outerRadius={80}
+                        label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                        labelLine={false}
+                      >
                         {status.map((s, i) => <Cell key={i} fill={STATUS_COR[s.status] ?? SERIES_CORES[i]} />)}
                       </Pie>
                       <Tooltip content={<TooltipCustom />} />
@@ -217,7 +196,6 @@ export default function Analytics() {
                 )}
               </div>
 
-              {/* top solicitantes */}
               <div className="card an-chart-card">
                 <div className="card-header"><span className="card-title">Top Solicitantes</span></div>
                 {solics.length === 0 ? <p className="an-empty">Sem dados</p> : (
@@ -232,7 +210,6 @@ export default function Analytics() {
                 )}
               </div>
 
-              {/* top técnicos */}
               <div className="card an-chart-card">
                 <div className="card-header"><span className="card-title">Top Técnicos</span></div>
                 {tecnicos.length === 0 ? <p className="an-empty">Sem dados</p> : (
@@ -247,24 +224,10 @@ export default function Analytics() {
                 )}
               </div>
 
-              {/* por prioridade */}
-              <div className="card an-chart-card">
-                <div className="card-header"><span className="card-title">Por Prioridade</span></div>
-                {prios.length === 0 ? <p className="an-empty">Sem dados</p> : (
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={prios} margin={{ left: 8, right: 24, bottom: 8 }}>
-                      <XAxis dataKey="prioridade" tick={{ fontSize: 11, fontFamily: 'var(--mono)', fill: C.ink }} />
-                      <YAxis hide />
-                      <Tooltip content={<TooltipCustom />} />
-                      <Bar dataKey="total" name="Chamados" radius={[3, 3, 0, 0]}>
-                        {prios.map((p, i) => <Cell key={i} fill={PRIO_COR[p.prioridade] ?? SERIES_CORES[i]} />)}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-
             </div>
+
+            {/* módulo específico da área */}
+            {AreaModule && <AreaModule periodo={periodo} />}
           </>
         )}
       </div>

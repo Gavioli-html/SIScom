@@ -63,8 +63,28 @@
   --text-3xl:  2.25rem;
   --text-4xl:  3rem;
 
+  /* Accent shades */
+  --accent-subtle: rgba(0, 102, 204, .06);
+  --accent-hover:  #0077dd;
+  --accent-dark:   #004fa8;
+
   /* Layout */
-  --sidebar-w:      220px;
+  --sidebar-w:      240px;
   --sidebar-w-sm:   64px;
-  --topbar-h:       56px;
+  --topbar-h:       60px;
+
+  /* Sombras */
+  --shadow-xs:    0 1px 2px rgba(13,20,51,.06);
+  --shadow-sm:    0 1px 4px rgba(13,20,51,.08), 0 1px 2px rgba(13,20,51,.04);
+  --shadow-md:    0 4px 16px rgba(13,20,51,.10), 0 2px 4px rgba(13,20,51,.06);
+  --shadow-lg:    0 8px 32px rgba(13,20,51,.14), 0 3px 8px rgba(13,20,51,.06);
+  --shadow-xl:    0 20px 60px rgba(13,20,51,.20), 0 8px 20px rgba(13,20,51,.10);
+  --shadow-focus: 0 0 0 3px rgba(0, 102, 204, .18);
+  --shadow-card:  0 2px 8px rgba(13,20,51,.08), 0 1px 3px rgba(13,20,51,.05);
+  --shadow-card-hover: 0 8px 28px rgba(13,20,51,.13), 0 3px 8px rgba(13,20,51,.06);
+
+  /* Transições */
+  --ease:    0.15s ease;
+  --ease-md: 0.22s ease;
+  --ease-lg: 0.30s ease;
 }

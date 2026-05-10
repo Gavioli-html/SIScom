@@ -9,10 +9,16 @@ interface Tecnico {
   role: string
 }
 
+interface TecnicoSimples {
+  id: number
+  nome: string
+  email: string
+}
+
 interface PainelAcoesProps {
   chamadoId: number
   statusAtual: string
-  tecnicoAtual: { id: number; nome: string } | null
+  tecnicosAtuais: TecnicoSimples[]
   onUpdate: () => void
 }
 
@@ -27,10 +33,10 @@ const TRANSICOES: Record<string, { value: string; label: string }[]> = {
 const STATUS_DANGER = ['CANCELADO']
 const ENCERRADOS = ['ENCERRADO', 'CANCELADO']
 
-export default function PainelAcoes({ chamadoId, statusAtual, tecnicoAtual, onUpdate }: PainelAcoesProps) {
+export default function PainelAcoes({ chamadoId, statusAtual, tecnicosAtuais, onUpdate }: PainelAcoesProps) {
   const { usuario } = useAuth()
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([])
-  const [tecnicoId, setTecnicoId] = useState<string>(tecnicoAtual?.id ? String(tecnicoAtual.id) : '')
+  const [tecnicoId, setTecnicoId] = useState('')
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
 
@@ -56,12 +62,13 @@ export default function PainelAcoes({ chamadoId, statusAtual, tecnicoAtual, onUp
     }
   }
 
-  const atribuir = async () => {
+  const adicionarTecnico = async () => {
     if (!tecnicoId) return
     setErro('')
     setSalvando(true)
     try {
-      await api.patch(`/chamados/${chamadoId}/atribuir`, { tecnico_id: Number(tecnicoId) })
+      await api.post(`/chamados/${chamadoId}/tecnicos`, { tecnico_id: Number(tecnicoId) })
+      setTecnicoId('')
       onUpdate()
     } catch (e: unknown) {
       setErro(e instanceof Error ? e.message : 'Erro ao atribuir técnico')
@@ -70,7 +77,23 @@ export default function PainelAcoes({ chamadoId, statusAtual, tecnicoAtual, onUp
     }
   }
 
+  const removerTecnico = async (id: number) => {
+    setErro('')
+    setSalvando(true)
+    try {
+      await api.delete(`/chamados/${chamadoId}/tecnicos/${id}`)
+      onUpdate()
+    } catch (e: unknown) {
+      setErro(e instanceof Error ? e.message : 'Erro ao remover técnico')
+    } finally {
+      setSalvando(false)
+    }
+  }
+
   if (!podeAgir) return null
+
+  const idsAtuais = new Set(tecnicosAtuais.map(t => t.id))
+  const tecnicosDisponiveis = tecnicos.filter(t => !idsAtuais.has(t.id))
 
   return (
     <div className="painel card">
@@ -100,27 +123,48 @@ export default function PainelAcoes({ chamadoId, statusAtual, tecnicoAtual, onUp
 
       {!encerrado && (
         <div className="painel-section">
-          <span className="painel-label">Atribuir técnico</span>
-          <div className="painel-atribuir">
-            <select
-              className="form-select"
-              value={tecnicoId}
-              onChange={e => setTecnicoId(e.target.value)}
-              disabled={salvando}
-            >
-              <option value="">Selecione...</option>
-              {tecnicos.map(t => (
-                <option key={t.id} value={t.id}>{t.nome}</option>
+          <span className="painel-label">Técnicos</span>
+
+          {tecnicosAtuais.length > 0 && (
+            <ul className="painel-tecnicos-lista">
+              {tecnicosAtuais.map(t => (
+                <li key={t.id} className="painel-tecnico-item">
+                  <span>{t.nome}</span>
+                  <button
+                    className="painel-tecnico-remover"
+                    onClick={() => removerTecnico(t.id)}
+                    disabled={salvando}
+                    title="Remover técnico"
+                  >
+                    ✕
+                  </button>
+                </li>
               ))}
-            </select>
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={atribuir}
-              disabled={!tecnicoId || salvando}
-            >
-              Atribuir
-            </button>
-          </div>
+            </ul>
+          )}
+
+          {tecnicosDisponiveis.length > 0 && (
+            <div className="painel-atribuir">
+              <select
+                className="form-select"
+                value={tecnicoId}
+                onChange={e => setTecnicoId(e.target.value)}
+                disabled={salvando}
+              >
+                <option value="">Adicionar técnico...</option>
+                {tecnicosDisponiveis.map(t => (
+                  <option key={t.id} value={t.id}>{t.nome}</option>
+                ))}
+              </select>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={adicionarTecnico}
+                disabled={!tecnicoId || salvando}
+              >
+                +
+              </button>
+            </div>
+          )}
         </div>
       )}
 

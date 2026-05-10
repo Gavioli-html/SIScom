@@ -109,29 +109,30 @@ async function main() {
   });
 
   // Template SECOM
+  const secomCampos = [
+    { chave: "briefing", label: "Briefing", tipo: "textarea", obrigatorio: true },
+    {
+      chave: "formato",
+      label: "Formato de Entrega",
+      tipo: "multiselect",
+      obrigatorio: true,
+      opcoes: ["Arte para redes sociais", "Cobertura de evento", "Redação de nota/release", "Impresso/banner"],
+    },
+    {
+      chave: "canal",
+      label: "Canal de Publicação",
+      tipo: "multiselect",
+      obrigatorio: false,
+      opcoes: ["Instagram", "Facebook", "Site", "WhatsApp", "Impresso", "TV", "Rádio"],
+    },
+  ];
   await prisma.templateChamado.upsert({
     where: { id: 2 },
-    update: {},
+    update: { campos_json: secomCampos },
     create: {
       area_id: secom.id,
       nome: "Demanda SECOM",
-      campos_json: [
-        { chave: "briefing", label: "Briefing", tipo: "textarea", obrigatorio: true },
-        {
-          chave: "formato",
-          label: "Formato de Entrega",
-          tipo: "select",
-          obrigatorio: true,
-          opcoes: ["Arte para redes sociais", "Cobertura de evento", "Redação de nota/release", "Impresso/banner"],
-        },
-        {
-          chave: "canal",
-          label: "Canal de Publicação",
-          tipo: "select",
-          obrigatorio: false,
-          opcoes: ["Instagram", "Facebook", "Site", "WhatsApp", "Impresso", "TV", "Rádio"],
-        },
-      ],
+      campos_json: secomCampos,
       sla_config_json: {
         "Arte para redes sociais": { prazo_dias_uteis: 2 },
         "Cobertura de evento": { prazo_dias_uteis: 3 },
