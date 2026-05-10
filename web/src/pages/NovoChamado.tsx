@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { FormEvent } from 'react'
+import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AppShell from '../components/layout/AppShell'
 import { api } from '../lib/api'
