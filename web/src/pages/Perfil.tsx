@@ -9,7 +9,7 @@ const ROLE_LABEL: Record<string, string> = {
 }
 
 export default function Perfil() {
-  const { usuario, login } = useAuth()
+  const { usuario } = useAuth()
 
   const [nome, setNome] = useState(usuario?.nome ?? '')
   const [senhaAtual, setSenhaAtual] = useState('')
