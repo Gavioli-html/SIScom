@@ -20,5 +20,4 @@ export function signRefresh(payload: TokenPayload) {
 }
 
 export function verify(token: string): TokenPayload {
-  return jwt.verify(token, SECRET) as TokenPayload
-}
+  return jwt.verify(token, SECRET) as UNKNOWN as TokenPayload
