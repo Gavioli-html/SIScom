@@ -108,6 +108,9 @@ export default function NovoChamado() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (!template) return
+    if (!titulo.trim()) { setErro('O título é obrigatório.'); return }
+    if (!descricao.trim()) { setErro('A descrição é obrigatória.'); return }
+    if (!secretaria) { setErro('Selecione a Secretaria Solicitante.'); return }
     setErro('')
     setEnviando(true)
 
@@ -300,7 +303,7 @@ export default function NovoChamado() {
             <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)}>
               Cancelar
             </button>
-            <button type="submit" className="btn btn-primary" disabled={enviando || !titulo || !descricao || !secretaria}>
+            <button type="submit" className="btn btn-primary" disabled={enviando}>
               {enviando ? 'Abrindo...' : 'Abrir Chamado'}
             </button>
           </div>
