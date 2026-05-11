@@ -47,7 +47,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     silentRefresh()
+    const interval = setInterval(silentRefresh, 13 * 60 * 1000)
+    return () => clearInterval(interval)
   }, [silentRefresh])
+
+  useEffect(() => {
+    const handler = () => setState({ usuario: null, loading: false })
+    window.addEventListener('auth:logout', handler)
+    return () => window.removeEventListener('auth:logout', handler)
+  }, [])
 
   const login = async (email: string, senha: string) => {
     const data = await api.post<{ access_token: string; usuario: Usuario }>(

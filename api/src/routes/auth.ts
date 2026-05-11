@@ -38,8 +38,8 @@ export async function authRoutes(app: FastifyInstance) {
 
     reply.setCookie('refresh_token', refreshToken, {
       httpOnly: true,
-      sameSite: 'strict',
-      path: '/auth/refresh',
+      sameSite: 'lax',
+      path: '/',
       maxAge: 60 * 60 * 24 * 7,
     })
 
@@ -72,7 +72,7 @@ export async function authRoutes(app: FastifyInstance) {
   })
 
   app.post('/auth/logout', async (_req, reply) => {
-    reply.clearCookie('refresh_token', { path: '/auth/refresh' })
+    reply.clearCookie('refresh_token', { path: '/' })
     return { ok: true }
   })
 

@@ -37,7 +37,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       }
       return retry.json()
     }
-    throw new Error('Sessão expirada. Faça login novamente.')
+    accessToken = null
+    window.dispatchEvent(new Event('auth:logout'))
+    window.location.href = '/login'
+    throw new Error('Sessão expirada.')
   }
 
   if (!res.ok) {
