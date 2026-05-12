@@ -49,6 +49,7 @@ model Area {
   templates TemplateChamado[]
   chamados  Chamado[]
   ativos    Ativo[]
+  eventos   EventoCalendario[]
 
   @@map("area")
 }
@@ -68,6 +69,7 @@ model Usuario {
   chamados_tecnico ChamadoTecnico[]
   mensagens        Mensagem[]
   historicos       Historico[]
+  eventos_criados  EventoCalendario[]
 
   @@map("usuario")
 }
@@ -233,4 +235,20 @@ model Nps {
   criado_em  DateTime @default(now())
 
   @@map("nps")
+}
+
+model EventoCalendario {
+  id            Int      @id @default(autoincrement())
+  area_id       Int
+  titulo        String   @db.VarChar(200)
+  data          DateTime @db.Date
+  cor           String   @default("accent") @db.VarChar(20)
+  descricao     String?  @db.VarChar(500)
+  criado_por_id Int
+  criado_em     DateTime @default(now())
+
+  area       Area    @relation(fields: [area_id], references: [id])
+  criado_por Usuario @relation(fields: [criado_por_id], references: [id])
+
+  @@map("evento_calendario")
 }

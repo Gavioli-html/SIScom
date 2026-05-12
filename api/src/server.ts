@@ -12,6 +12,7 @@ import { perfilRoutes } from "./routes/perfil.js";
 import { analyticsRoutes } from "./routes/analytics.js"
 import { tagRoutes } from "./routes/tags.js";
 import { ativoRoutes } from "./routes/ativos.js";
+import { eventoRoutes } from "./routes/eventos.js";
 
 const app = Fastify({ logger: true });
 
@@ -42,6 +43,7 @@ await app.register(perfilRoutes);
 await app.register(analyticsRoutes)
 await app.register(tagRoutes);
 await app.register(ativoRoutes);
+await app.register(eventoRoutes);
 
 const port = Number(process.env.PORT ?? 3000);
 
