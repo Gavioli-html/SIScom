@@ -75,8 +75,13 @@ export default function NovoChamado() {
     if (!usuario) return
     api.get<{ templates: Template[] }>(`/templates?area_id=${usuario.area.id}`)
       .then(data => {
-        if (data.templates[0]) setTemplate(data.templates[0])
+        if (data.templates[0]) {
+          setTemplate(data.templates[0])
+        } else {
+          setErro('Nenhum template encontrado para sua área. Contate o administrador.')
+        }
       })
+      .catch(() => setErro('Erro ao carregar template. Recarregue a página.'))
   }, [usuario])
 
   const setCampo = (chave: string, valor: string) => {
@@ -107,7 +112,7 @@ export default function NovoChamado() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!template) return
+    if (!template) { setErro('Template não carregado. Recarregue a página.'); return }
     if (!titulo.trim()) { setErro('O título é obrigatório.'); return }
     if (!descricao.trim()) { setErro('A descrição é obrigatória.'); return }
     if (!secretaria) { setErro('Selecione a Secretaria Solicitante.'); return }
