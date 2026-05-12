@@ -112,12 +112,17 @@ export default function NovoChamado() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    console.log('[NovoChamado] submit disparado')
+    console.log('[NovoChamado] template:', template)
+    console.log('[NovoChamado] titulo:', titulo, '| descricao:', descricao, '| secretaria:', secretaria)
+
     if (!template) { setErro('Template não carregado. Recarregue a página.'); return }
     if (!titulo.trim()) { setErro('O título é obrigatório.'); return }
     if (!descricao.trim()) { setErro('A descrição é obrigatória.'); return }
     if (!secretaria) { setErro('Selecione a Secretaria Solicitante.'); return }
     setErro('')
     setEnviando(true)
+    console.log('[NovoChamado] passou validações, chamando API...')
 
     const camposArr = Object.entries(campos)
       .filter(([, v]) => v.trim())
@@ -130,11 +135,13 @@ export default function NovoChamado() {
         '/chamados',
         { titulo, descricao, template_id: template.id, prioridade, secretaria_solicitante: secretaria || undefined, campos: camposArr, formato }
       )
+      console.log('[NovoChamado] chamado criado:', data.chamado)
       if (ativoPreview) {
         await api.post(`/chamados/${data.chamado.id}/ativos`, { ativo_id: ativoPreview.id }).catch(() => null)
       }
       navigate(`/chamados/${data.chamado.id}`)
     } catch (err: unknown) {
+      console.error('[NovoChamado] erro:', err)
       setErro(err instanceof Error ? err.message : 'Erro ao abrir chamado')
     } finally {
       setEnviando(false)
@@ -163,8 +170,9 @@ export default function NovoChamado() {
           </div>
         )}
 
+        {erro && <div className="alert alert-danger" style={{ position: 'sticky', top: 0, zIndex: 50 }}>{erro}</div>}
+
         <form className="novo-form card" onSubmit={handleSubmit} noValidate>
-          {erro && <div className="alert alert-danger">{erro}</div>}
 
           <div className="novo-grid">
             <div className="form-group novo-titulo">
